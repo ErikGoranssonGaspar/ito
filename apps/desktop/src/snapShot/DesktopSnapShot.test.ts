@@ -821,52 +821,6 @@ it.effect("reads and acknowledges queued captures through Effect services", () =
   ).pipe(Effect.provide(layer));
 });
 
-it.effect("captures the active Windows window without enumerating desktop sources", () => {
-  const png = Buffer.from([1, 2, 3]);
-  const active = {
-    platform: "windows",
-    id: 42,
-    title: "Untitled - Paint",
-    owner: { name: "Paint.exe", processId: 123, path: "C:\\Windows\\System32\\mspaint.exe" },
-    bounds: { x: 10, y: 20, width: 800, height: 600 },
-  } as const;
-  activeWindowMock.mockReset().mockResolvedValue(active);
-  accessibilityByPidMock.mockReset().mockResolvedValue({ children: async () => [] });
-  regionCaptureMock.mockReset().mockResolvedValue({ width: 800, height: 600, png });
-  getSourcesMock.mockReset();
-  getFileIconMock.mockReset().mockResolvedValue(fakeIcon("file"));
-  const writtenFiles: Array<[string, Uint8Array]> = [];
-  let metadata = "";
-  const layer = testLayer("win32", {
-    makeDirectory: () => Effect.void,
-    rename: () => Effect.void,
-    writeFile: (path, bytes) =>
-      Effect.sync(() => {
-        writtenFiles.push([path, bytes]);
-      }),
-    writeFileString: (_, text) =>
-      Effect.sync(() => {
-        metadata = text;
-      }),
-  });
-
-  return Effect.scoped(
-    Effect.gen(function* () {
-      const service = yield* DesktopSnapShot.make;
-      yield* service.configure(enabledSettings());
-      yield* service.capture;
-
-      assert.deepEqual(regionCaptureMock.mock.calls, [[active.bounds]]);
-      assert.lengthOf(getSourcesMock.mock.calls, 0);
-      assert.deepEqual(getFileIconMock.mock.calls, [[active.owner.path, { size: "normal" }]]);
-      assert.deepEqual(writtenFiles[0]?.[1], png);
-      const saved = yield* decodePendingMetadata(metadata);
-      assert.equal(saved.source.appName, "Paint");
-      assert.match(saved.source.appIconDataUrl ?? "", /base64,file:/);
-    }),
-  ).pipe(Effect.provide(layer));
-});
-
 it.effect.each([
   { length: 1_000, suffix: "", expectedLength: 1_000 },
   { length: 1_001, suffix: "", expectedLength: 1_000 },
@@ -3079,51 +3033,6 @@ it.effect("registers macOS capture without accessibility permission when data is
       assert.isTrue((yield* service.state).shortcutRegistered);
     }),
   ).pipe(Effect.provide(testLayer("darwin")));
-});
-
-it.effect("starts the Shift listener outside the Electron main process", () => {
-  shortcutForkArgs.length = 0;
-  shortcutForkOptions.length = 0;
-  shortcutProcesses.length = 0;
-  const settings = { ...DEFAULT_CLIENT_SETTINGS, snapShotEnabled: true };
-
-  return Effect.scoped(
-    Effect.gen(function* () {
-      const service = yield* DesktopSnapShot.make;
-      yield* service.configure(settings);
-      const state = yield* service.state;
-
-      assert.isTrue(state.shortcutRegistered);
-      assert.lengthOf(shortcutProcesses, 1);
-      assert.deepEqual(shortcutForkArgs[0], ["shift"]);
-      assert.strictEqual(shortcutForkOptions[0]?.env?.ELECTRON_RUN_AS_NODE, "1");
-
-      shortcutProcesses[0]?.emit("exit", 1);
-      yield* Effect.promise(() => new Promise<void>((resolve) => queueMicrotask(resolve)));
-      assert.isFalse((yield* service.state).shortcutRegistered);
-    }),
-  ).pipe(Effect.provide(testLayer("win32")));
-});
-
-it.effect("passes the configured modifier pair to the listener process", () => {
-  shortcutForkArgs.length = 0;
-  shortcutProcesses.length = 0;
-  const settings = {
-    ...DEFAULT_CLIENT_SETTINGS,
-    snapShotEnabled: true,
-    snapShotShortcut: { kind: "modifier-pair", modifier: "meta" },
-  } satisfies ClientSettings;
-
-  return Effect.scoped(
-    Effect.gen(function* () {
-      const service = yield* DesktopSnapShot.make;
-      yield* service.configure(settings);
-      const state = yield* service.state;
-
-      assert.isTrue(state.shortcutRegistered);
-      assert.deepEqual(shortcutForkArgs[0], ["meta"]);
-    }),
-  ).pipe(Effect.provide(testLayer("win32")));
 });
 
 it.effect("registers a configured key chord instead of the Shift listener", () => {

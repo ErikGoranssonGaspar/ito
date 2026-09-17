@@ -23,23 +23,17 @@ if (!Number.isInteger(port) || port <= 0) {
 
 const requiredFiles = [
   "dist-electron/main.cjs",
-  "dist-electron/electron/WindowsForegroundFocusWorker.cjs",
   "dist-electron/preload.cjs",
-  "dist-electron/snapShot/GlobalShiftShortcutWorker.cjs",
-  "dist-electron/snapShot/RegionSnapShotWorker.cjs",
-  "dist-electron/snapShot/SnapShotAccessibilityWorker.cjs",
+  "dist-electron/RegionSnapShotWorker.cjs",
+  "dist-electron/SnapShotAccessibilityWorker.cjs",
   "../server/dist/bin.mjs",
 ];
 const watchedDirectories = [
-  { directory: "dist-electron", files: new Set(["main.cjs", "preload.cjs"]) },
   {
-    directory: "dist-electron/electron",
-    files: new Set(["WindowsForegroundFocusWorker.cjs"]),
-  },
-  {
-    directory: "dist-electron/snapShot",
+    directory: "dist-electron",
     files: new Set([
-      "GlobalShiftShortcutWorker.cjs",
+      "main.cjs",
+      "preload.cjs",
       "RegionSnapShotWorker.cjs",
       "SnapShotAccessibilityWorker.cjs",
     ]),
@@ -87,16 +81,6 @@ function killChildTreeByPid(pid, signal) {
   }
 
   NodeChildProcess.spawnSync("pkill", [`-${signal}`, "-P", String(pid)], { stdio: "ignore" });
-}
-
-function cleanupStaleDevApps() {
-  if (hostPlatform === "win32") {
-    return;
-  }
-
-  NodeChildProcess.spawnSync("pkill", ["-f", "--", `--t3code-dev-root=${desktopDir}`], {
-    stdio: "ignore",
-  });
 }
 
 function startApp() {
@@ -165,7 +149,6 @@ async function stopApp() {
     app.once("exit", finish);
     app.kill("SIGTERM");
     killChildTreeByPid(app.pid, "TERM");
-    cleanupStaleDevApps();
 
     setTimeout(() => {
       if (settled) {
@@ -174,7 +157,6 @@ async function stopApp() {
 
       app.kill("SIGKILL");
       killChildTreeByPid(app.pid, "KILL");
-      cleanupStaleDevApps();
       finish();
     }, forcedShutdownTimeoutMs).unref();
   });
@@ -255,7 +237,6 @@ async function shutdown(exitCode) {
 }
 
 startWatchers();
-cleanupStaleDevApps();
 startApp();
 
 process.once("SIGINT", () => {

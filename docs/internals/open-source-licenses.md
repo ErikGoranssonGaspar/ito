@@ -1,40 +1,25 @@
 # Open source license notices
 
-License notices are generated independently for the client that ships them:
-
-- The web build emits `third-party-licenses.json` beside `index.html`. The Settings page loads that
-  static file, so the same artifact works in hosted web, the client bundled with `npx t3`, and
-  desktop.
-- The mobile Metro config generates an ignored virtual module before each development, native, or
-  over-the-air JavaScript bundle. Mobile loads and decodes that module only when a license screen
-  opens, so the notice text does not occupy memory during ordinary app startup. It does not need a
-  network request.
-
-Neither path depends on the connected environment or an RPC.
+The desktop renderer build emits `third-party-licenses.json` beside `index.html`. The Settings
+page loads that static file. It does not depend on a connected environment or an RPC.
 
 ## What the build collects
 
 The generator follows installed production and optional dependencies, including dependencies of
-workspace packages, and omits first-party `@t3tools/*` packages. The web manifest starts from the
-web, server, and desktop package manifests. The mobile manifest starts from the mobile package
-manifest. During the web bundle, the generator also checks emitted module ids to catch a bundled
-npm import missing from a package manifest.
-
-The mobile manifest deliberately follows the complete production dependency closure declared by
-Expo and React Native. That is conservative and can include build tooling that is not present in
-the final JavaScript bundle, but it avoids dropping a notice when platform bundling changes.
+workspace packages, and omits first-party `@t3tools/*` packages. The renderer manifest starts
+from the web, server, and desktop package manifests. During the bundle, the generator also checks
+emitted module ids to catch a bundled npm import missing from a package manifest.
 
 The build fails when a collected package has no distributable license identifier or contains no
 license or notice text. Generated notices use license templates from the pinned SPDX License List.
-Strict web and EAS builds download a missing template into the gitignored `.generated/` cache;
-`pnpm licenses:sync` can warm that cache explicitly. Local web and Metro development do not make a
-network request and omit generated rows until the cache exists. This keeps dev startup optional
-while preventing incomplete release artifacts.
+Strict builds download a missing template into the gitignored `.generated/` cache;
+`pnpm licenses:sync` can warm that cache explicitly. Local development does not make a network
+request and omits generated rows until the cache exists.
 
 ## Custom notices and package overrides
 
 The repository-level `third-party-licenses.config.json` holds manually maintained exceptions for
-all clients. Add an entry to `customNotices` for adapted icons, fonts, media, native modules, or
+the desktop app. Add an entry to `customNotices` for adapted icons, fonts, media, native modules, or
 another asset that did not come from an npm package:
 
 ```json
@@ -57,8 +42,8 @@ Each `generatedNotices` item names an SPDX license template and can add `copyrig
 that vendors separately licensed code. Keep `noticeFile` or `noticeFiles` only when a vendored
 source tree already carries an intrinsic license file that should remain beside it. Paths are
 relative to the config file. `bundles` controls which generated manifests include the entry and
-supplies the label shown to users. Use `includeInBundles` when those differ, such as an optional
-server tool that should appear in both client manifests but is not bundled into either client.
+supplies the label shown to users. Use `includeInBundles` when the label differs from the
+generated manifest that should include the notice.
 
 Use `packageOverrides` only when an installed npm archive omits its notice or has incorrect
 metadata:
@@ -97,6 +82,6 @@ The `@react-grab/cli` override uses the root React Grab repository's MIT license
 npm archive omits both its license field and license file. Keep the override until the published
 CLI package carries that metadata itself.
 
-Generated mobile files live under `apps/mobile/.generated/`, while fetched SPDX templates live
-under the repository `.generated/` directory. Both are ignored. Do not commit or edit them;
-updating dependencies or configuration is enough for the next strict build to refresh the output.
+Fetched SPDX templates live under the repository's ignored `.generated/` directory. Do not
+commit or edit them; updating dependencies or configuration is enough for the next strict build
+to refresh the output.

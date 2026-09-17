@@ -39,7 +39,6 @@ import * as Electron from "electron";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
 import * as DesktopWindow from "../window/DesktopWindow.ts";
-import { startGlobalShiftShortcutProcess } from "./GlobalShiftShortcutProcess.ts";
 import { startMacModifierPairShortcutProcess } from "./MacModifierPairShortcutProcess.ts";
 import { activeWindow, type ActiveWindow } from "./ActiveWindow.ts";
 import { captureMacWindowSnapshot, type MacSnapShotSource } from "./MacSnapShot.ts";
@@ -305,10 +304,7 @@ function snapShotAppName(
   linuxWindow: LinuxWindowMetadata | undefined,
   sourceName: string,
 ): string {
-  const appName =
-    active?.owner.name.trim() || linuxWindow?.appName.trim() || sourceName.trim() || "Window";
-  if (active?.platform !== "windows") return appName;
-  return appName.replace(/\.exe$/i, "").trim() || appName;
+  return active?.owner.name.trim() || linuxWindow?.appName.trim() || sourceName.trim() || "Window";
 }
 
 async function requestMacScreenCapturePermission(): Promise<string | null> {
@@ -756,16 +752,14 @@ export const make = Effect.gen(function* () {
         ),
     dataHome: path.dirname(environment.linuxApplicationsDir),
   };
-  const shiftShortcutWorkerPath = path.join(__dirname, "snapShot", "GlobalShiftShortcutWorker.cjs");
   const shortcutConfig = new CaptureShortcutConfig();
   const accessibilityWorkerPath = path.join(
     __dirname,
-    "snapShot",
     "SnapShotAccessibilityWorker.cjs",
   );
   const accessibilityProcessPool = makeSnapShotAccessibilityProcessPool(accessibilityWorkerPath);
   const regionSnapShotPool = makeRegionSnapShotPool(
-    path.join(__dirname, "snapShot", "RegionSnapShotWorker.cjs"),
+    path.join(__dirname, "RegionSnapShotWorker.cjs"),
   );
   let registeredAccelerator: string | undefined;
   // False until the first applySettings; the first pass must always register.
@@ -802,10 +796,7 @@ export const make = Effect.gen(function* () {
     modifier: SnapShotModifier,
     onTrigger: () => void,
     onFailure: (error: Error) => void,
-  ) =>
-    environment.platform === "darwin"
-      ? startMacModifierPairShortcutProcess(modifier, onTrigger, onFailure)
-      : startGlobalShiftShortcutProcess(shiftShortcutWorkerPath, modifier, onTrigger, onFailure);
+  ) => startMacModifierPairShortcutProcess(modifier, onTrigger, onFailure);
 
   const releaseShortcut = () => {
     shortcutGeneration++;

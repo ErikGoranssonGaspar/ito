@@ -35,7 +35,7 @@ import * as DesktopApp from "./app/DesktopApp.ts";
 import * as DesktopAppActivation from "./app/DesktopAppActivation.ts";
 import * as DesktopAppIdentity from "./app/DesktopAppIdentity.ts";
 import * as DesktopConnectionCatalogStore from "./app/DesktopConnectionCatalogStore.ts";
-import * as DesktopClerk from "./app/DesktopClerk.ts";
+import * as DesktopSingleInstance from "./app/DesktopSingleInstance.ts";
 import * as DesktopApplicationMenu from "./window/DesktopApplicationMenu.ts";
 import * as DesktopAssets from "./app/DesktopAssets.ts";
 import * as DesktopBackendConfiguration from "./backend/DesktopBackendConfiguration.ts";
@@ -204,7 +204,7 @@ const desktopApplicationLayer = Layer.mergeAll(
   Layer.provideMerge(desktopLocalEnvironmentAuthLayer),
 );
 
-const desktopClerkLayer = DesktopClerk.layer.pipe(
+const desktopSingleInstanceLayer = DesktopSingleInstance.layer.pipe(
   Layer.provideMerge(desktopEnvironmentLayer),
   Layer.provideMerge(NodeServices.layer),
   Layer.provideMerge(ElectronApp.layer),
@@ -217,11 +217,12 @@ const desktopApplicationRuntimeLayer = desktopApplicationLayer.pipe(
   Layer.provideMerge(electronLayer),
 );
 
-// Acquire strict pre-ready setup before Clerk, whose userData resolution can
-// yield and let Electron emit ready.
-const desktopRuntimeLayer = desktopClerkLayer.pipe(
-  Layer.flatMap((clerkContext) =>
-    desktopApplicationRuntimeLayer.pipe(Layer.provideMerge(Layer.succeedContext(clerkContext))),
+// Set userData and acquire the single-instance lock before Electron emits ready.
+const desktopRuntimeLayer = desktopSingleInstanceLayer.pipe(
+  Layer.flatMap((singleInstanceContext) =>
+    desktopApplicationRuntimeLayer.pipe(
+      Layer.provideMerge(Layer.succeedContext(singleInstanceContext)),
+    ),
   ),
   Layer.provideMerge(DesktopPreReadyPlatform.layer),
 );
