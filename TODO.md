@@ -11,6 +11,7 @@ This tracks the reduction of the T3 Code fork. The longer-term product direction
 - [x] Remove the Electron T3 account bridge and its unused Clerk package, while keeping provider sign-in.
 - [x] Remove CodeRabbit, Macroscope, Cursor Cloud, VS Code, and iOS simulator project configuration, Git hooks, and vendored reference repositories.
 - [x] Remove T3 account profile and mobile-device pages from the settings sidebar.
+- [x] Reduce the server's external browser, editor, and file-manager launcher to macOS behavior.
 - [x] Preserve this checkout's `.t3` data and settings.
 
 ## Next cleanup passes
