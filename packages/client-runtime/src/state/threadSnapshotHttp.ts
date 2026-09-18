@@ -67,7 +67,7 @@ export type FetchEnvironmentThreadSnapshotError = RemoteEnvironmentRequestError;
 /**
  * Loads a thread's detail snapshot over HTTP, returning `Option.none()` when it
  * cannot be loaded (so the caller falls back to the socket-embedded snapshot).
- * Decouples the thread state machine from the underlying HTTP + DPoP details and
+ * Decouples the thread state machine from the underlying HTTP details and
  * keeps them out of test contexts.
  */
 export class ThreadSnapshotLoader extends Context.Service<
@@ -90,9 +90,6 @@ export const threadSnapshotLoaderLayer: Layer.Layer<
   ThreadSnapshotLoader,
   Effect.gen(function* () {
     const httpClient = yield* HttpClient.HttpClient;
-    // Resolve the DPoP signer optionally: it is only needed for relay/DPoP
-    // connections, so the loader must not hard-require it (bearer/primary
-    // connections work without one).
     return ThreadSnapshotLoader.of({
       load: (
         prepared: PreparedConnection,

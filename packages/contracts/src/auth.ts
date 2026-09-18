@@ -68,8 +68,9 @@ export type ServerAuthBootstrapMethod = typeof ServerAuthBootstrapMethod.Type;
  *   app after bootstrap/pairing
  * - `bearer-access-token`: scoped token suitable for non-cookie or
  *   non-browser clients
- * - `dpop-access-token`: scoped proof-of-possession token used by managed
- *   relay connections
+ * - `dpop-access-token`: relay-era proof-of-possession token. The server no
+ *   longer issues or accepts these, but the literal stays decodable for
+ *   sessions already stored in a local database.
  */
 export const ServerAuthSessionMethod = Schema.Literals([
   "browser-session-cookie",
@@ -199,7 +200,7 @@ export type AuthTokenExchangeRequest = typeof AuthTokenExchangeRequest.Type;
 export const AuthAccessTokenResult = Schema.Struct({
   access_token: TrimmedNonEmptyString,
   issued_token_type: Schema.Literal(AuthAccessTokenType),
-  token_type: Schema.Literals(["Bearer", "DPoP"]),
+  token_type: Schema.Literal("Bearer"),
   expires_in: Schema.Number,
   scope: TrimmedNonEmptyString,
 });

@@ -135,17 +135,9 @@
       "types": "./src/remote.ts",
       "import": "./src/remote.ts"
     },
-    "./relaySigning": {
-      "types": "./src/relaySigning.ts",
-      "import": "./src/relaySigning.ts"
-    },
-    "./dpop": {
-      "types": "./src/dpop.ts",
-      "import": "./src/dpop.ts"
-    },
-    "./dpopCommon": {
-      "types": "./src/dpopCommon.ts",
-      "import": "./src/dpopCommon.ts"
+    "./stableJson": {
+      "types": "./src/stableJson.ts",
+      "import": "./src/stableJson.ts"
     },
     "./oauthScope": {
       "types": "./src/oauthScope.ts",

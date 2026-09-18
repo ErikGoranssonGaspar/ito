@@ -3,9 +3,9 @@
  *
  * The panel reaches simulator streams through `/api/device-hub/*` on the
  * environment origin. `<img>`, `EventSource`, and `WebSocket` cannot set
- * bearer or DPoP headers, so bearer and DPoP connections mint a
- * short-lived WebSocket ticket and pass it as `wsTicket`, the same way the
- * app's own `/ws` upgrade authenticates. Cookie sessions send the cookie.
+ * bearer headers, so bearer connections mint a short-lived WebSocket ticket
+ * and pass it as `wsTicket`, the same way the app's own `/ws` upgrade
+ * authenticates. Cookie sessions send the cookie.
  *
  * A ticket lives five minutes server-side and is bound to the session, not
  * to one request, so one ticket covers everything a panel opens at once.

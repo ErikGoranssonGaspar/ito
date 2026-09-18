@@ -70,7 +70,6 @@ const DROPPED_REQUEST_HEADERS = new Set([
   "sec-websocket-protocol",
   "cookie",
   "authorization",
-  "dpop",
   "content-length",
   "accept-encoding",
 ]);
@@ -82,8 +81,8 @@ const isWebSocketUpgrade = (request: HttpServerRequest.HttpServerRequest) =>
  * `<img>` and WebSocket cannot set headers, so every proxied request
  * authenticates the way the `/ws` upgrade does: a cookie for browser
  * sessions, or a short-lived `wsTicket` minted over authenticated HTTP for
- * bearer and DPoP clients. The upgrade authenticator already implements that
- * fallback order, so it is used for plain requests as well.
+ * bearer clients. The upgrade authenticator already implements that fallback
+ * order, so it is used for plain requests as well.
  */
 const authenticate = (requiredScope: AuthEnvironmentScope) =>
   Effect.gen(function* () {
@@ -95,7 +94,6 @@ const authenticate = (requiredScope: AuthEnvironmentScope) =>
           if (EnvironmentAuth.isServerAuthCredentialError(error)) {
             return yield* failEnvironmentAuthInvalid(
               EnvironmentAuth.serverAuthCredentialReason(error),
-              EnvironmentAuth.serverAuthDpopFailureReason(error),
             );
           }
           return yield* failEnvironmentInternal("internal_error", error);

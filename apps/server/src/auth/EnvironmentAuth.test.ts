@@ -189,17 +189,6 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
 
       expect(exchanged.access_token).not.toBe(token);
       expect(exchanged.scope).toBe("orchestration:read");
-      const dpop = yield* serverAuth.exchangeBootstrapCredentialForAccessToken(
-        token,
-        ["orchestration:read"],
-        requestMetadata,
-        { proofKeyThumbprint: "test-proof-key" },
-      );
-      expect(dpop.access_token).not.toBe(token);
-      expect(dpop.access_token).not.toBe(exchanged.access_token);
-      expect(dpop.token_type).toBe("DPoP");
-      expect(dpop.scope).toBe("orchestration:read");
-
       const secondBearer = yield* serverAuth.exchangeBootstrapCredentialForAccessToken(
         token,
         ["orchestration:read"],

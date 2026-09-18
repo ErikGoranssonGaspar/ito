@@ -1,7 +1,6 @@
 import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
 import * as NodeSocket from "@effect/platform-node/NodeSocket";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import * as NodeCrypto from "node:crypto";
 import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
 
 import {
@@ -12,7 +11,6 @@ import {
   AuthTokenExchangeGrantType,
   CommandId,
   DEFAULT_SERVER_SETTINGS,
-  type DpopFailureReason,
   EnvironmentId,
   EventId,
   GitCommandError,
@@ -47,11 +45,6 @@ import {
   WorktreeSetupSnapshot,
   type WorktreeSetupStageId,
 } from "@t3tools/contracts";
-import {
-  computeDpopAccessTokenHash,
-  computeDpopJwkThumbprint,
-  type DpopPublicJwk,
-} from "@t3tools/shared/dpop";
 import { assert, it } from "@effect/vitest";
 import { assertFailure, assertInclude, assertTrue } from "@effect/vitest/utils";
 import * as Clock from "effect/Clock";
@@ -1329,7 +1322,6 @@ const exchangeAccessToken = (
       readonly _tag?: string;
       readonly code?: string;
       readonly reason?: string;
-      readonly dpopFailureReason?: DpopFailureReason;
       readonly traceId?: string;
     }>(response);
     return {
@@ -1337,52 +1329,6 @@ const exchangeAccessToken = (
       body,
     };
   });
-
-const makeDpopProof = (input: {
-  readonly method: string;
-  readonly url: string;
-  readonly iat: number;
-  readonly accessToken?: string;
-  readonly jti?: string;
-  readonly privateKey?: NodeCrypto.KeyObject;
-  readonly publicJwk?: DpopPublicJwk;
-}) => {
-  const keyPair =
-    input.privateKey && input.publicJwk
-      ? { privateKey: input.privateKey, publicJwk: input.publicJwk }
-      : (() => {
-          const { privateKey, publicKey } = NodeCrypto.generateKeyPairSync("ec", {
-            namedCurve: "P-256",
-          });
-          return { privateKey, publicJwk: publicKey.export({ format: "jwk" }) as DpopPublicJwk };
-        })();
-  const header = Buffer.from(
-    JSON.stringify({
-      typ: "dpop+jwt",
-      alg: "ES256",
-      jwk: keyPair.publicJwk,
-    }),
-  ).toString("base64url");
-  const payload = Buffer.from(
-    JSON.stringify({
-      htm: input.method,
-      htu: input.url,
-      jti: input.jti ?? "proof-1",
-      iat: input.iat,
-      ...(input.accessToken ? { ath: computeDpopAccessTokenHash(input.accessToken) } : {}),
-    }),
-  ).toString("base64url");
-  const signature = NodeCrypto.sign("sha256", Buffer.from(`${header}.${payload}`), {
-    key: keyPair.privateKey,
-    dsaEncoding: "ieee-p1363",
-  }).toString("base64url");
-  return {
-    proof: `${header}.${payload}.${signature}`,
-    thumbprint: computeDpopJwkThumbprint(keyPair.publicJwk),
-    privateKey: keyPair.privateKey,
-    publicJwk: keyPair.publicJwk,
-  };
-};
 
 class AuthenticationGetterError extends Data.TaggedError("AuthenticationGetterError")<{
   readonly message: string;
@@ -1519,7 +1465,6 @@ const assertBrowserApiCorsPreflightHeaders = (
     "authorization",
     "b3",
     "content-type",
-    "dpop",
     "traceparent",
   ]);
 };
@@ -2108,11 +2053,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       assert.equal(body.authenticated, false);
       assert.equal(body.auth.policy, "desktop-managed-local");
       assert.deepEqual(body.auth.bootstrapMethods, ["desktop-bootstrap"]);
-      assert.deepEqual(body.auth.sessionMethods, [
-        "browser-session-cookie",
-        "bearer-access-token",
-        "dpop-access-token",
-      ]);
+      assert.deepEqual(body.auth.sessionMethods, ["browser-session-cookie", "bearer-access-token"]);
       // Desktop, so port-scoped: instances scan for a free port and share
       // 127.0.0.1, and cookies are not scoped by port.
       assert.isTrue(body.auth.sessionCookieName.startsWith("t3_session_"));
@@ -2325,244 +2266,6 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         ipAddress: "127.0.0.1",
         userAgent: "undici",
       });
-    }).pipe(Effect.provide(NodeHttpServer.layerTest)),
-  );
-
-  it.effect(
-    "exchanges a bootstrap credential for a DPoP-bound access token without bearer downgrade",
-    () =>
-      Effect.gen(function* () {
-        yield* buildAppUnderTest();
-
-        const ownerCookie = yield* getAuthenticatedSessionCookieHeader();
-        const credentialResponse = yield* HttpClient.post("/api/auth/pairing-token", {
-          headers: { cookie: ownerCookie },
-          body: yield* HttpBody.json({}),
-        });
-        const credential = (yield* credentialResponse.json) as { readonly credential: string };
-        const tokenUrl = yield* getHttpServerUrl("/oauth/token");
-        const now = yield* DateTime.now;
-        const tokenProof = makeDpopProof({
-          method: "POST",
-          url: tokenUrl,
-          iat: Math.floor(now.epochMilliseconds / 1_000),
-          jti: "token-exchange-proof",
-        });
-        const tokenResponse = yield* fetchEffect(tokenUrl, {
-          method: "POST",
-          headers: {
-            "content-type": "application/x-www-form-urlencoded",
-            dpop: tokenProof.proof,
-          },
-          body: new URLSearchParams({
-            grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
-            subject_token: credential.credential,
-            subject_token_type: "urn:t3:params:oauth:token-type:environment-bootstrap",
-            requested_token_type: "urn:ietf:params:oauth:token-type:access_token",
-            scope: "orchestration:read orchestration:operate terminal:operate review:write",
-          }).toString(),
-        });
-        const token = yield* responseJsonEffect<{
-          readonly access_token: string;
-          readonly token_type: string;
-        }>(tokenResponse);
-
-        assert.equal(tokenResponse.status, 200);
-        assert.equal(tokenResponse.headers["cache-control"], "no-store");
-        assert.equal(token.token_type, "DPoP");
-
-        const sessionUrl = yield* getHttpServerUrl("/api/auth/session");
-        const bearerResponse = yield* fetchEffect(sessionUrl, {
-          headers: { authorization: `Bearer ${token.access_token}` },
-        });
-        const bearerState = yield* responseJsonEffect<{ readonly authenticated: boolean }>(
-          bearerResponse,
-        );
-        assert.equal(bearerState.authenticated, false);
-
-        const sessionProof = makeDpopProof({
-          method: "GET",
-          url: sessionUrl,
-          iat: Math.floor(now.epochMilliseconds / 1_000),
-          jti: "session-proof",
-          accessToken: token.access_token,
-          privateKey: tokenProof.privateKey,
-          publicJwk: tokenProof.publicJwk,
-        });
-        const dpopResponse = yield* fetchEffect(sessionUrl, {
-          headers: {
-            authorization: `DPoP ${token.access_token}`,
-            dpop: sessionProof.proof,
-          },
-        });
-        const dpopState = yield* responseJsonEffect<{
-          readonly authenticated: boolean;
-          readonly sessionMethod?: string;
-        }>(dpopResponse);
-        assert.equal(dpopState.authenticated, true);
-        assert.equal(dpopState.sessionMethod, "dpop-access-token");
-      }).pipe(Effect.provide(NodeHttpServer.layerTest)),
-  );
-
-  it.effect("reports clock skew for a future-dated DPoP token exchange proof", () =>
-    Effect.gen(function* () {
-      yield* buildAppUnderTest();
-
-      const ownerCookie = yield* getAuthenticatedSessionCookieHeader();
-      const credentialResponse = yield* HttpClient.post("/api/auth/pairing-token", {
-        headers: { cookie: ownerCookie },
-        body: yield* HttpBody.json({}),
-      });
-      const credential = (yield* credentialResponse.json) as { readonly credential: string };
-      const tokenUrl = yield* getHttpServerUrl("/oauth/token");
-      const now = yield* DateTime.now;
-      const dpop = makeDpopProof({
-        method: "POST",
-        url: tokenUrl,
-        iat: Math.floor(now.epochMilliseconds / 1_000) + 25,
-      });
-
-      const exchange = yield* exchangeAccessToken(credential.credential, {
-        headers: { dpop: dpop.proof },
-        scope: "orchestration:read orchestration:operate terminal:operate review:write",
-      });
-
-      assert.equal(exchange.response.status, 401);
-      assert.equal(exchange.body._tag, "EnvironmentAuthInvalidError");
-      assert.equal(exchange.body.code, "auth_invalid");
-      assert.equal(exchange.body.reason, "invalid_credential");
-      assert.equal(exchange.body.dpopFailureReason, "time_window");
-      assert.equal(typeof exchange.body.traceId, "string");
-    }).pipe(Effect.provide(NodeHttpServer.layerTest)),
-  );
-
-  it.effect("rejects replayed DPoP proofs across token exchanges", () =>
-    Effect.gen(function* () {
-      yield* buildAppUnderTest();
-
-      const ownerCookie = yield* getAuthenticatedSessionCookieHeader();
-      const firstCredentialResponse = yield* HttpClient.post("/api/auth/pairing-token", {
-        headers: {
-          cookie: ownerCookie,
-        },
-        body: yield* HttpBody.json({}),
-      });
-      const firstCredential = (yield* firstCredentialResponse.json) as {
-        readonly credential: string;
-      };
-      const secondCredentialResponse = yield* HttpClient.post("/api/auth/pairing-token", {
-        headers: {
-          cookie: ownerCookie,
-        },
-        body: yield* HttpBody.json({}),
-      });
-      const secondCredential = (yield* secondCredentialResponse.json) as {
-        readonly credential: string;
-      };
-      const tokenUrl = yield* getHttpServerUrl("/oauth/token");
-      const now = yield* DateTime.now;
-      const dpop = makeDpopProof({
-        method: "POST",
-        url: tokenUrl,
-        iat: Math.floor(now.epochMilliseconds / 1_000),
-      });
-
-      const firstBootstrap = yield* exchangeAccessToken(firstCredential.credential, {
-        headers: {
-          dpop: dpop.proof,
-        },
-        scope: "orchestration:read orchestration:operate terminal:operate review:write",
-      });
-      const replayBootstrap = yield* exchangeAccessToken(secondCredential.credential, {
-        headers: {
-          dpop: dpop.proof,
-        },
-        scope: "orchestration:read orchestration:operate terminal:operate review:write",
-      });
-
-      assert.equal(firstBootstrap.response.status, 200);
-      assert.equal(replayBootstrap.response.status, 401);
-      assert.equal(replayBootstrap.body._tag, "EnvironmentAuthInvalidError");
-      assert.equal(replayBootstrap.body.code, "auth_invalid");
-      assert.equal(replayBootstrap.body.reason, "invalid_credential");
-      assert.equal(replayBootstrap.body.dpopFailureReason, "replay");
-      assert.equal(typeof replayBootstrap.body.traceId, "string");
-    }).pipe(Effect.provide(NodeHttpServer.layerTest)),
-  );
-
-  it.effect("ignores forwarded host headers when validating token exchange DPoP URLs", () =>
-    Effect.gen(function* () {
-      yield* buildAppUnderTest();
-
-      const ownerCookie = yield* getAuthenticatedSessionCookieHeader();
-      const credentialResponse = yield* HttpClient.post("/api/auth/pairing-token", {
-        headers: {
-          cookie: ownerCookie,
-        },
-        body: yield* HttpBody.json({}),
-      });
-      const credential = (yield* credentialResponse.json) as {
-        readonly credential: string;
-      };
-      const tokenUrl = yield* getHttpServerUrl("/oauth/token");
-      const now = yield* DateTime.now;
-      const dpop = makeDpopProof({
-        method: "POST",
-        url: tokenUrl,
-        iat: Math.floor(now.epochMilliseconds / 1_000),
-      });
-
-      const bootstrap = yield* exchangeAccessToken(credential.credential, {
-        headers: {
-          dpop: dpop.proof,
-          "x-forwarded-host": "environment.example.test",
-        },
-        scope: "orchestration:read orchestration:operate terminal:operate review:write",
-      });
-
-      assert.equal(bootstrap.response.status, 200);
-      assert.equal(bootstrap.body.token_type, "DPoP");
-    }).pipe(Effect.provide(NodeHttpServer.layerTest)),
-  );
-
-  it.effect("rejects token exchange DPoP proofs bound to spoofed forwarded hosts", () =>
-    Effect.gen(function* () {
-      yield* buildAppUnderTest();
-
-      const ownerCookie = yield* getAuthenticatedSessionCookieHeader();
-      const credentialResponse = yield* HttpClient.post("/api/auth/pairing-token", {
-        headers: {
-          cookie: ownerCookie,
-        },
-        body: yield* HttpBody.json({}),
-      });
-      const credential = (yield* credentialResponse.json) as {
-        readonly credential: string;
-      };
-      const tokenUrl = yield* getHttpServerUrl("/oauth/token");
-      const spoofedUrl = new URL(tokenUrl);
-      spoofedUrl.hostname = "environment.example.test";
-      const now = yield* DateTime.now;
-      const dpop = makeDpopProof({
-        method: "POST",
-        url: spoofedUrl.href,
-        iat: Math.floor(now.epochMilliseconds / 1_000),
-      });
-
-      const bootstrap = yield* exchangeAccessToken(credential.credential, {
-        headers: {
-          dpop: dpop.proof,
-          "x-forwarded-host": spoofedUrl.host,
-        },
-        scope: "orchestration:read orchestration:operate terminal:operate review:write",
-      });
-
-      assert.equal(bootstrap.response.status, 401);
-      assert.equal(bootstrap.body._tag, "EnvironmentAuthInvalidError");
-      assert.equal(bootstrap.body.code, "auth_invalid");
-      assert.equal(bootstrap.body.reason, "invalid_credential");
-      assert.equal(bootstrap.body.dpopFailureReason, "request_mismatch");
-      assert.equal(typeof bootstrap.body.traceId, "string");
     }).pipe(Effect.provide(NodeHttpServer.layerTest)),
   );
 
@@ -3798,7 +3501,6 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         "authorization",
         "b3",
         "content-type",
-        "dpop",
         "traceparent",
       ]);
     }).pipe(Effect.provide(NodeHttpServer.layerTest)),

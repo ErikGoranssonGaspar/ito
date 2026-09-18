@@ -37,7 +37,6 @@ export const CreateAuthPairingLinkInput = Schema.Struct({
   scopes: AuthEnvironmentScopes,
   subject: Schema.String,
   label: Schema.NullOr(Schema.String),
-  proofKeyThumbprint: Schema.NullOr(Schema.String),
   createdAt: Schema.DateTimeUtcFromString,
   expiresAt: Schema.DateTimeUtcFromString,
 });
@@ -45,7 +44,6 @@ export type CreateAuthPairingLinkInput = typeof CreateAuthPairingLinkInput.Type;
 
 export const ConsumeAuthPairingLinkInput = Schema.Struct({
   credential: Schema.String,
-  proofKeyThumbprint: Schema.NullOr(Schema.String),
   consumedAt: Schema.DateTimeUtcFromString,
   now: Schema.DateTimeUtcFromString,
 });
@@ -147,7 +145,7 @@ export const make = Effect.gen(function* () {
           ${JSON.stringify(input.scopes)},
           ${input.subject},
           ${input.label},
-          ${input.proofKeyThumbprint},
+          NULL,
           ${input.createdAt},
           ${input.expiresAt},
           NULL,
@@ -159,7 +157,7 @@ export const make = Effect.gen(function* () {
   const consumeAvailablePairingLinkRow = SqlSchema.findOneOption({
     Request: ConsumeAuthPairingLinkInput,
     Result: AuthPairingLinkRawDbRow,
-    execute: ({ credential, proofKeyThumbprint, consumedAt, now }) =>
+    execute: ({ credential, consumedAt, now }) =>
       sql`
         UPDATE auth_pairing_links
         SET consumed_at = ${consumedAt}
@@ -167,10 +165,8 @@ export const make = Effect.gen(function* () {
           AND revoked_at IS NULL
           AND consumed_at IS NULL
           AND expires_at > ${now}
-          AND (
-            proof_key_thumbprint IS NULL
-            OR proof_key_thumbprint = ${proofKeyThumbprint}
-          )
+          -- Relay-era links bound to a DPoP proof key are no longer consumable.
+          AND proof_key_thumbprint IS NULL
         RETURNING
           id AS "id",
           credential AS "credential",

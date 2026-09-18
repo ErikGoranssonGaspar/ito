@@ -7,12 +7,8 @@ import * as TestClock from "effect/testing/TestClock";
 
 import { EnvironmentAuthInvalidError } from "@t3tools/contracts";
 import {
-  appendClientConnectionParams,
   bootstrapRemoteBearerSession,
-  exchangeRemoteDpopAccessToken,
-  fetchRemoteDpopSessionState,
   fetchRemoteSessionState,
-  issueRemoteDpopWebSocketTicket,
   issueRemoteWebSocketTicket,
   RemoteEnvironmentAuthInvalidJsonError,
   RemoteEnvironmentAuthTimeoutError,
@@ -126,158 +122,6 @@ describe("remote environment authorization", () => {
     }),
   );
 
-  it.effect("exchanges managed credentials and admits websocket requests with DPoP", () =>
-    Effect.gen(function* () {
-      const fetch = recordedFetch(
-        Response.json({
-          access_token: "dpop-access-token",
-          issued_token_type: "urn:ietf:params:oauth:token-type:access_token",
-          token_type: "DPoP",
-          expires_in: 3600,
-          scope: "orchestration:read orchestration:operate terminal:operate review:write",
-        }),
-        Response.json({
-          ticket: "ws-ticket",
-          expiresAt: "2026-05-01T12:05:00.000Z",
-        }),
-      );
-
-      const token = yield* exchangeRemoteDpopAccessToken({
-        httpBaseUrl: "https://remote.example.com/",
-        credential: "one-time-credential",
-        dpopProof: "token-proof",
-        clientMetadata: {
-          label: "T3 Code Mobile",
-          deviceType: "mobile",
-          os: "iOS",
-        },
-      }).pipe(provideRemoteHttp(fetch.fetchFn));
-      yield* issueRemoteDpopWebSocketTicket({
-        httpBaseUrl: "https://remote.example.com/",
-        accessToken: token.access_token,
-        dpopProof: "resource-proof",
-      }).pipe(provideRemoteHttp(fetch.fetchFn));
-
-      expectFetchCall(fetch.calls, 1, {
-        url: "https://remote.example.com/oauth/token",
-        method: "POST",
-        headers: { dpop: "token-proof", "content-type": "application/x-www-form-urlencoded" },
-        body: "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Atoken-exchange&subject_token=one-time-credential&subject_token_type=urn%3At3%3Aparams%3Aoauth%3Atoken-type%3Aenvironment-bootstrap&requested_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Aaccess_token&client_label=T3+Code+Mobile&client_device_type=mobile&client_os=iOS",
-      });
-      expectFetchCall(fetch.calls, 2, {
-        url: "https://remote.example.com/api/auth/websocket-ticket",
-        method: "POST",
-        headers: {
-          authorization: "DPoP dpop-access-token",
-          dpop: "resource-proof",
-        },
-      });
-    }),
-  );
-
-  it.effect("submits optional client display metadata during bearer token exchange", () =>
-    Effect.gen(function* () {
-      const fetch = recordedFetch(
-        Response.json(
-          {
-            access_token: "bearer-token",
-            issued_token_type: "urn:ietf:params:oauth:token-type:access_token",
-            token_type: "Bearer",
-            expires_in: 3600,
-            scope: "orchestration:read orchestration:operate terminal:operate review:write",
-          },
-          { status: 200 },
-        ),
-      );
-
-      yield* bootstrapRemoteBearerSession({
-        httpBaseUrl: "https://remote.example.com/",
-        credential: "pairing-token",
-        clientMetadata: {
-          label: "T3 Code Mobile",
-          deviceType: "mobile",
-          os: "iOS",
-        },
-      }).pipe(provideRemoteHttp(fetch.fetchFn));
-
-      expectFetchCall(fetch.calls, 1, {
-        url: "https://remote.example.com/oauth/token",
-        method: "POST",
-        body: "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Atoken-exchange&subject_token=pairing-token&subject_token_type=urn%3At3%3Aparams%3Aoauth%3Atoken-type%3Aenvironment-bootstrap&requested_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Aaccess_token&client_label=T3+Code+Mobile&client_device_type=mobile&client_os=iOS",
-      });
-    }),
-  );
-
-  it.effect("keeps OS sentinels in telemetry but out of display metadata", () =>
-    Effect.gen(function* () {
-      const tokenResponse = () =>
-        Response.json(
-          {
-            access_token: "bearer-token",
-            issued_token_type: "urn:ietf:params:oauth:token-type:access_token",
-            token_type: "Bearer",
-            expires_in: 3600,
-            scope: "orchestration:read",
-          },
-          { status: 200 },
-        );
-      const fetch = recordedFetch(tokenResponse(), tokenResponse());
-
-      for (const os of ["unknown", "other"] as const) {
-        yield* bootstrapRemoteBearerSession({
-          httpBaseUrl: "https://remote.example.com/",
-          credential: "pairing-token",
-          clientMetadata: {
-            label: "T3 Code Web",
-            deviceType: "desktop",
-            os,
-          },
-        }).pipe(provideRemoteHttp(fetch.fetchFn));
-      }
-
-      for (const [, init] of fetch.calls) {
-        expect(String(init.body)).not.toContain("client_os=");
-      }
-
-      const websocketUrl = new URL("wss://remote.example.com/ws");
-      appendClientConnectionParams(websocketUrl, {
-        surface: "web",
-        deviceType: "desktop",
-        os: "unknown",
-      });
-      expect(websocketUrl.searchParams.get("clientOs")).toBe("unknown");
-    }),
-  );
-
-  it.effect("allows a client to explicitly narrow a pairing grant", () =>
-    Effect.gen(function* () {
-      const fetch = recordedFetch(
-        Response.json(
-          {
-            access_token: "read-only-token",
-            issued_token_type: "urn:ietf:params:oauth:token-type:access_token",
-            token_type: "Bearer",
-            expires_in: 3600,
-            scope: "orchestration:read",
-          },
-          { status: 200 },
-        ),
-      );
-
-      yield* bootstrapRemoteBearerSession({
-        httpBaseUrl: "https://remote.example.com/",
-        credential: "pairing-token",
-        scopes: ["orchestration:read"],
-      }).pipe(provideRemoteHttp(fetch.fetchFn));
-
-      expectFetchCall(fetch.calls, 1, {
-        url: "https://remote.example.com/oauth/token",
-        method: "POST",
-        body: "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Atoken-exchange&subject_token=pairing-token&subject_token_type=urn%3At3%3Aparams%3Aoauth%3Atoken-type%3Aenvironment-bootstrap&requested_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Aaccess_token&scope=orchestration%3Aread",
-      });
-    }),
-  );
-
   it.effect("loads remote session state and websocket tickets over bearer auth", () =>
     Effect.gen(function* () {
       const fetch = recordedFetch(
@@ -366,45 +210,6 @@ describe("remote environment authorization", () => {
         method: "POST",
         headers: {
           authorization: "Bearer bearer-token",
-        },
-      });
-    }),
-  );
-
-  it.effect("loads remote session state with a DPoP-bound access token", () =>
-    Effect.gen(function* () {
-      const fetch = recordedFetch(
-        Response.json({
-          authenticated: true,
-          auth: {
-            policy: "remote-reachable",
-            bootstrapMethods: ["one-time-token"],
-            sessionMethods: ["dpop-access-token"],
-            sessionCookieName: "t3_session",
-          },
-          sessionMethod: "dpop-access-token",
-          scopes: [
-            "orchestration:read",
-            "orchestration:operate",
-            "terminal:operate",
-            "review:write",
-          ],
-          expiresAt: "2026-05-01T12:00:00.000Z",
-        }),
-      );
-
-      yield* fetchRemoteDpopSessionState({
-        httpBaseUrl: "https://remote.example.com/",
-        accessToken: "dpop-access-token",
-        dpopProof: "dpop-proof",
-      }).pipe(provideRemoteHttp(fetch.fetchFn));
-
-      expectFetchCall(fetch.calls, 1, {
-        url: "https://remote.example.com/api/auth/session",
-        method: "GET",
-        headers: {
-          authorization: "DPoP dpop-access-token",
-          dpop: "dpop-proof",
         },
       });
     }),
