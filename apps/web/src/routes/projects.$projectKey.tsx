@@ -4,7 +4,7 @@ export const Route = createFileRoute("/projects/$projectKey")({
   beforeLoad: async ({ context, params }) => {
     if (
       context.authGateState.status !== "authenticated" &&
-      context.authGateState.status !== "hosted-static"
+      context.authGateState.status !== "no-local-backend"
     ) {
       throw redirect({ to: "/pair", replace: true });
     }

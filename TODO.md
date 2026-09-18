@@ -36,13 +36,13 @@ This tracks the reduction of the T3 Code fork. The longer-term product direction
 - [x] Reduce the browser cookie import to macOS: drop the Windows DPAPI key path and
       AES-GCM records, the Windows and Linux profile roots and lock probes, and the
       per-source platform lists.
+- [x] Collapse the renderer's hosted-static-app mode. `isHostedStaticApp()` is gone and
+      the `hosted-static` auth-gate state is renamed `no-local-backend`, which is the only
+      way it was ever reachable here.
 - [x] Preserve this checkout's `.t3` data and settings.
 
 ## Next cleanup passes
 
-- [ ] Collapse the renderer's hosted-static-app mode. `isHostedStaticApp()` can only be
-      false in the desktop app, but the `hosted-static` and `hosted-pairing` auth-gate
-      states it feeds are threaded through every route guard, so this is its own pass.
 - [ ] Remove the remaining Windows and Linux branches from the server and renderer —
       about 110 `process.platform` checks across provider, terminal, telemetry and
       shell code. Each is a small judgment call, so this wants its own careful pass.

@@ -112,8 +112,11 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "..
 import { AnimatedHeight } from "../AnimatedHeight";
 import { EnvironmentMachineIcon } from "../EnvironmentMachineIcon";
 import { Textarea } from "../ui/textarea";
-import { getPairingTokenFromUrl, setPairingTokenOnUrl } from "../../pairingUrl";
-import { readHostedPairingRequest } from "../../hostedPairing";
+import {
+  getPairingTokenFromUrl,
+  readHostedPairingRequest,
+  setPairingTokenOnUrl,
+} from "../../pairingUrl";
 import {
   createServerPairingCredential,
   revokeOtherServerClientSessions,

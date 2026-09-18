@@ -53,7 +53,6 @@ import { useUiStateStore } from "../uiStateStore";
 import { syncBrowserChromeTheme } from "../hooks/useTheme";
 import { configureClientTracing } from "../observability/clientTracing";
 import { resolveInitialServerAuthGateState } from "../environments/primary";
-import { hasHostedPairingRequest, isHostedStaticApp } from "../hostedPairing";
 import { isLocalEnvironmentDisabled } from "../localEnvironment";
 import { shellEnvironment } from "../state/shell";
 import { useAtomValue } from "@effect/atom-react";
@@ -76,18 +75,13 @@ import { shouldResumeSnapShotSetupOnStartup } from "../lib/snapShotSetupResume";
 
 export const Route = createRootRoute({
   beforeLoad: async ({ location }) => {
-    if (location.pathname === "/pair" && hasHostedPairingRequest(new URL(window.location.href))) {
+    // With the local backend switched off there is no primary server to
+    // authenticate against, so the pairing gate is skipped and the app runs on
+    // its saved remote environments alone.
+    if (isLocalEnvironmentDisabled()) {
       return {
         authGateState: {
-          status: "hosted-pairing",
-        } as const,
-      };
-    }
-
-    if (isLocalEnvironmentDisabled() || isHostedStaticApp(new URL(window.location.href))) {
-      return {
-        authGateState: {
-          status: "hosted-static",
+          status: "no-local-backend",
         } as const,
       };
     }
@@ -181,7 +175,7 @@ function RootRouteView() {
     );
   }
 
-  if (authGateState.status !== "authenticated" && authGateState.status !== "hosted-static") {
+  if (authGateState.status !== "authenticated" && authGateState.status !== "no-local-backend") {
     return (
       <>
         <DocumentTitleSync />
@@ -212,7 +206,7 @@ function RootRouteView() {
         <FontAppearanceSync />
         <FirstRunGate
           enabled={primaryEnvironmentAuthenticated}
-          hostedStatic={authGateState.status === "hosted-static"}
+          noLocalBackend={authGateState.status === "no-local-backend"}
         >
           {primaryEnvironmentAuthenticated ? <AuthenticatedTracingBootstrap /> : null}
           {primaryEnvironmentAuthenticated ? <DesktopAppActivationCoordinator /> : null}
@@ -223,7 +217,7 @@ function RootRouteView() {
           <CustomSnoozeDialogHost />
           <SlowRpcRequestToastCoordinator />
           <ProjectCloneToastCoordinator />
-          <HostedStaticEnvironmentBootstrap />
+          <RemoteOnlyEnvironmentBootstrap />
           {primaryEnvironmentAuthenticated ? (
             <EventRouter skipInitialBootstrapNavigation={returningFromWelcomeRef.current} />
           ) : null}
@@ -328,7 +322,7 @@ function DocumentTitleSync() {
   return null;
 }
 
-function HostedStaticEnvironmentBootstrap() {
+function RemoteOnlyEnvironmentBootstrap() {
   const { environments } = useEnvironments();
   const activeEnvironmentId = useActiveEnvironmentId();
 

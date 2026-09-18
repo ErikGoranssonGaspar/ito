@@ -4,7 +4,7 @@ import {
   isFirstRunWorkspaceProvenanceAuthoritative,
   isFreshFirstRunWorkspace,
   resolveFirstRunDecision,
-  resolveHostedFirstRunDecision,
+  resolveRemoteOnlyFirstRunDecision,
   transitionFirstRunGateState,
 } from "./firstRun.logic";
 
@@ -273,14 +273,13 @@ describe("transitionFirstRunGateState", () => {
   });
 });
 
-describe("resolveHostedFirstRunDecision", () => {
+describe("resolveRemoteOnlyFirstRunDecision", () => {
   it("keeps the shell hidden until client settings are hydrated", () => {
     expect(
-      resolveHostedFirstRunDecision({
+      resolveRemoteOnlyFirstRunDecision({
         hydrated: false,
         completed: false,
         catalogReady: true,
-        environmentCount: 0,
       }),
     ).toEqual({
       decision: "pending",
@@ -288,13 +287,12 @@ describe("resolveHostedFirstRunDecision", () => {
     });
   });
 
-  it("waits for the saved environment catalog before judging a hosted install", () => {
+  it("waits for the saved environment catalog before deciding", () => {
     expect(
-      resolveHostedFirstRunDecision({
+      resolveRemoteOnlyFirstRunDecision({
         hydrated: true,
         completed: false,
         catalogReady: false,
-        environmentCount: 0,
       }),
     ).toEqual({
       decision: "pending",
@@ -302,39 +300,12 @@ describe("resolveHostedFirstRunDecision", () => {
     });
   });
 
-  it("opens onboarding when a hosted install has no saved environments", () => {
+  it("lands in the app and backfills onboarding, so Connections stays reachable", () => {
     expect(
-      resolveHostedFirstRunDecision({
+      resolveRemoteOnlyFirstRunDecision({
         hydrated: true,
         completed: false,
         catalogReady: true,
-        environmentCount: 0,
-      }),
-    ).toEqual({
-      decision: "wizard",
-      persistCompletion: false,
-    });
-  });
-
-  it("keeps Connections reachable for a remote-only desktop predating onboarding", () => {
-    expect(
-      resolveHostedFirstRunDecision({
-        hydrated: true,
-        completed: false,
-        catalogReady: true,
-        environmentCount: 0,
-        localEnvironmentDisabled: true,
-      }),
-    ).toEqual({ decision: "app", persistCompletion: true });
-  });
-
-  it("backfills onboarding for a hosted install with saved environments", () => {
-    expect(
-      resolveHostedFirstRunDecision({
-        hydrated: true,
-        completed: false,
-        catalogReady: true,
-        environmentCount: 1,
       }),
     ).toEqual({
       decision: "app",
@@ -342,13 +313,12 @@ describe("resolveHostedFirstRunDecision", () => {
     });
   });
 
-  it("opens the app immediately after hosted onboarding is complete", () => {
+  it("opens the app immediately once onboarding is complete", () => {
     expect(
-      resolveHostedFirstRunDecision({
+      resolveRemoteOnlyFirstRunDecision({
         hydrated: true,
         completed: true,
         catalogReady: false,
-        environmentCount: 0,
       }),
     ).toEqual({
       decision: "app",

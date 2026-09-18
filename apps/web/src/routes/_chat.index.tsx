@@ -25,9 +25,9 @@ function ChatIndexRouteView() {
   const { authGateState } = Route.useRouteContext();
   const { environments, isReady } = useEnvironments();
 
-  if (authGateState.status === "hosted-static") {
+  if (authGateState.status === "no-local-backend") {
     if (!isReady) return null;
-    if (environments.length === 0) return <HostedStaticOnboardingState />;
+    if (environments.length === 0) return <RemoteOnlyOnboardingState />;
   }
 
   return <IndexDraftLanding />;
@@ -112,7 +112,7 @@ export const Route = createFileRoute("/_chat/")({
   component: ChatIndexRouteView,
 });
 
-function HostedStaticOnboardingState() {
+function RemoteOnlyOnboardingState() {
   const localEnvironmentOff = isLocalEnvironmentDisabled();
   const description = localEnvironmentOff
     ? "The local environment is turned off. Connect a remote environment, or turn the local environment back on in Connections."

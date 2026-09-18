@@ -48,12 +48,10 @@ interface FirstRunDecisionInput {
   readonly threadCount: number;
 }
 
-interface HostedFirstRunDecisionInput {
-  readonly localEnvironmentDisabled?: boolean;
+interface RemoteOnlyFirstRunDecisionInput {
   readonly hydrated: boolean;
   readonly completed: boolean;
   readonly catalogReady: boolean;
-  readonly environmentCount: number;
 }
 
 export function isFirstRunWorkspaceProvenanceAuthoritative(input: {
@@ -162,8 +160,14 @@ export function resolveFirstRunDecision(input: FirstRunDecisionInput): {
     : { decision: "app", persistCompletion: input.workspaceAuthoritative };
 }
 
-/** Hosted onboarding depends on saved environments because there is no primary server. */
-export function resolveHostedFirstRunDecision(input: HostedFirstRunDecisionInput): {
+/**
+ * First-run decision with the local backend switched off. There is no primary
+ * server to judge a fresh workspace against, and the wizard's first step is
+ * choosing a local or remote environment — which is exactly the choice already
+ * made — so this lands in the app and marks onboarding done. Connections stays
+ * reachable there, which is where local execution is turned back on.
+ */
+export function resolveRemoteOnlyFirstRunDecision(input: RemoteOnlyFirstRunDecisionInput): {
   readonly decision: FirstRunDecision;
   readonly persistCompletion: boolean;
 } {
@@ -179,9 +183,5 @@ export function resolveHostedFirstRunDecision(input: HostedFirstRunDecisionInput
     return { decision: "pending", persistCompletion: false };
   }
 
-  // An existing desktop may have disabled its server before onboarding existed.
-  // Keep Connections accessible so it can turn local execution back on.
-  return input.environmentCount === 0 && !input.localEnvironmentDisabled
-    ? { decision: "wizard", persistCompletion: false }
-    : { decision: "app", persistCompletion: true };
+  return { decision: "app", persistCompletion: true };
 }

@@ -9,13 +9,12 @@ import {
   useClientSettings,
   useClientSettingsHydrationStatus,
 } from "../../hooks/useSettings";
-import { isLocalEnvironmentDisabled } from "../../localEnvironment";
 import { useCompleteOnboarding } from "../../onboarding/firstRun";
 import {
   isFirstRunWorkspaceProvenanceAuthoritative,
   isFreshFirstRunWorkspace,
   resolveFirstRunDecision,
-  resolveHostedFirstRunDecision,
+  resolveRemoteOnlyFirstRunDecision,
   transitionFirstRunGateState,
   type FirstRunGateState,
 } from "../../onboarding/firstRun.logic";
@@ -72,11 +71,11 @@ const workspaceEvidenceLiveAtom = Atom.make((get) => {
 
 export function FirstRunGate({
   enabled,
-  hostedStatic,
+  noLocalBackend,
   children,
 }: {
   readonly enabled: boolean;
-  readonly hostedStatic: boolean;
+  readonly noLocalBackend: boolean;
   readonly children: React.ReactNode;
 }) {
   const navigate = useNavigate();
@@ -86,7 +85,7 @@ export function FirstRunGate({
   const completeOnboarding = useCompleteOnboarding();
   const onboardingCompletedAt = useClientSettings((settings) => settings.onboardingCompletedAt);
   const bootstrapped = useAllEnvironmentShellsBootstrapped();
-  const { environments, isReady: environmentCatalogReady } = useEnvironments();
+  const { isReady: environmentCatalogReady } = useEnvironments();
   const projects = useProjects();
   const threads = useThreadShells();
   const serverConfig = useAtomValue(primaryServerConfigAtom);
@@ -97,7 +96,7 @@ export function FirstRunGate({
   // the wizard) resolve synchronously instead of blanking a frame.
   const [gateState, setGateState] = useState<FirstRunGateState>(() => ({
     decision:
-      (!enabled && !hostedStatic) || (hydrated && onboardingCompletedAt !== null)
+      (!enabled && !noLocalBackend) || (hydrated && onboardingCompletedAt !== null)
         ? "app"
         : "pending",
     stalled: false,
@@ -125,13 +124,11 @@ export function FirstRunGate({
     threads,
   });
 
-  const { decision: nextDecision, persistCompletion } = hostedStatic
-    ? resolveHostedFirstRunDecision({
-        localEnvironmentDisabled: isLocalEnvironmentDisabled(),
+  const { decision: nextDecision, persistCompletion } = noLocalBackend
+    ? resolveRemoteOnlyFirstRunDecision({
         hydrated,
         completed: onboardingCompletedAt !== null,
         catalogReady: environmentCatalogReady,
-        environmentCount: environments.length,
       })
     : resolveFirstRunDecision({
         enabled,

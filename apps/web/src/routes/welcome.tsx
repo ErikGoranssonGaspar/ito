@@ -9,7 +9,7 @@ import { useNewThreadHandler } from "../hooks/useHandleNewThread";
 export const Route = createFileRoute("/welcome")({
   beforeLoad: ({ context }) => {
     const { authGateState } = context;
-    if (authGateState.status !== "authenticated" && authGateState.status !== "hosted-static") {
+    if (authGateState.status !== "authenticated" && authGateState.status !== "no-local-backend") {
       throw redirect({ to: "/pair", replace: true });
     }
   },
@@ -24,9 +24,8 @@ function WelcomeRouteView() {
   const isWelcomeRoute = useLocation({ select: (location) => location.pathname === "/welcome" });
   const [dismissed, setDismissed] = useState(false);
   const openNewThread = useNewThreadHandler();
-  // An authenticated gate means a primary server is serving this app —
-  // desktop, `npx t3`, or a dev server — and that server is "this machine"
-  // no matter what hostname the browser used. Only hosted-static has no
+  // An authenticated gate means a primary server is serving this app, and that
+  // server is "this machine". With the local backend switched off there is no
   // local server to offer.
   const localAvailable = authGateState.status === "authenticated";
   return (

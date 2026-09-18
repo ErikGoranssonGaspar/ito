@@ -47,7 +47,6 @@ import {
   type PrimaryEnvironmentTarget,
 } from "../environments/primary/target";
 import { clearComposerDraftsEnvironment } from "../composerDraftStore";
-import { isHostedStaticApp } from "../hostedPairing";
 import { isLocalEnvironmentDisabled } from "../localEnvironment";
 import { acknowledgeRpcRequest, trackRpcRequestSent } from "../rpc/requestLatencyState";
 import {
@@ -110,7 +109,7 @@ const wakeupsLayer = Wakeups.layer({
 function clientMetadata() {
   return clientPresentationMetadata({
     appVersion: APP_VERSION,
-    hosted: isHostedStaticApp(),
+    hosted: false,
     identity: {
       userAgent: navigator.userAgent,
       platform: navigator.platform,
@@ -421,7 +420,7 @@ export function secondaryRegistrationsToRetainAfterTopologyRead(
 const platformConnectionSourceLayer = Layer.effect(
   PlatformConnectionSource,
   Effect.gen(function* () {
-    if (isHostedStaticApp() || isLocalEnvironmentDisabled()) {
+    if (isLocalEnvironmentDisabled()) {
       return PlatformConnectionSource.of({
         registrations: Stream.empty,
       });
