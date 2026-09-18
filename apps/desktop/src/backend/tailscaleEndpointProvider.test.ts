@@ -65,7 +65,6 @@ describe("tailscale endpoint provider", () => {
           wsBaseUrl: "ws://100.100.100.100:3773/",
           reachability: "private-network",
           compatibility: {
-            hostedHttpsApp: "mixed-content-blocked",
             desktopApp: "compatible",
           },
           source: "desktop-addon",
@@ -85,7 +84,6 @@ describe("tailscale endpoint provider", () => {
           wsBaseUrl: "wss://desktop.tail.ts.net/",
           reachability: "private-network",
           compatibility: {
-            hostedHttpsApp: "requires-configuration",
             desktopApp: "compatible",
           },
           source: "desktop-addon",
@@ -140,7 +138,6 @@ describe("tailscale endpoint provider", () => {
             wsBaseUrl: "wss://desktop.tail.ts.net/",
             reachability: "private-network",
             compatibility: {
-              hostedHttpsApp: "compatible",
               desktopApp: "compatible",
             },
             source: "desktop-addon",

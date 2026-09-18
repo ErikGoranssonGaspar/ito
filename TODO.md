@@ -28,13 +28,18 @@ This tracks the reduction of the T3 Code fork. The longer-term product direction
       DPoP client auth, managed-relay state and hosted-browser pairing; the relay connection
       target; and the cloudflared relay-client installer with its RPCs. SSH environments and
       the environment registry are kept.
+- [x] Remove the server's DPoP proof-of-possession auth, which only relay and
+      hosted-browser clients ever used, and delete the orphaned relay protocol contract.
+- [x] Remove links into the T3-hosted web app: hosted pairing URLs, the hosted app
+      channel selection, the CLI's hosted Clerk OAuth helper, and the "reachable from a
+      hosted HTTPS app" endpoint compatibility.
 - [x] Preserve this checkout's `.t3` data and settings.
 
 ## Next cleanup passes
 
-- [ ] Remove the server-side DPoP proof-of-possession auth left over from the relay. Only
-      Bearer auth is used now, but the session store, persistence schemas and HTTP auth still
-      carry proof-key thumbprints, so this needs care with already-stored `.t3` sessions.
+- [ ] Collapse the renderer's hosted-static-app mode. `isHostedStaticApp()` can only be
+      false in the desktop app, but the `hosted-static` and `hosted-pairing` auth-gate
+      states it feeds are threaded through every route guard, so this is its own pass.
 - [ ] Remove remaining Windows and Linux code from retained packages (Chromium cookie import,
       platform branches in the server and renderer).
 - [ ] Prune dependencies, license overrides, tests, and documentation made obsolete by those cuts.

@@ -10,7 +10,7 @@ function makeEndpoint(overrides: Partial<AdvertisedEndpoint>): AdvertisedEndpoin
     httpBaseUrl: "http://192.168.1.42:4780",
     wsBaseUrl: "ws://192.168.1.42:4780",
     reachability: "lan",
-    compatibility: { hostedHttpsApp: "unknown", desktopApp: "compatible" },
+    compatibility: { desktopApp: "compatible" },
     source: "desktop-core",
     status: "available",
     ...overrides,

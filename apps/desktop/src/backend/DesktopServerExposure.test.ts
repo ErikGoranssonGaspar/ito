@@ -409,7 +409,6 @@ describe("DesktopServerExposure", () => {
             wsBaseUrl: "ws://127.0.0.1:3773/",
             reachability: "loopback",
             compatibility: {
-              hostedHttpsApp: "mixed-content-blocked",
               desktopApp: "compatible",
             },
             source: "desktop-core",
@@ -429,7 +428,6 @@ describe("DesktopServerExposure", () => {
             wsBaseUrl: "ws://192.168.1.20:3773/",
             reachability: "lan",
             compatibility: {
-              hostedHttpsApp: "mixed-content-blocked",
               desktopApp: "compatible",
             },
             source: "desktop-core",
@@ -450,7 +448,6 @@ describe("DesktopServerExposure", () => {
             wsBaseUrl: "wss://desktop.example.ts.net/",
             reachability: "public",
             compatibility: {
-              hostedHttpsApp: "compatible",
               desktopApp: "compatible",
             },
             source: "user",
@@ -470,7 +467,6 @@ describe("DesktopServerExposure", () => {
             wsBaseUrl: "ws://desktop.example.test:3773/",
             reachability: "public",
             compatibility: {
-              hostedHttpsApp: "mixed-content-blocked",
               desktopApp: "compatible",
             },
             source: "user",

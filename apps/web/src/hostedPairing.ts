@@ -1,6 +1,11 @@
-import { DEFAULT_HOSTED_APP_URL } from "@t3tools/shared/connectAuth";
+import { getPairingTokenFromUrl } from "./pairingUrl";
 
-import { getPairingTokenFromUrl, setPairingTokenOnUrl } from "./pairingUrl";
+/**
+ * Origin of the retired T3-hosted web app. ito never links to it; the constant
+ * only still exists so a bundle configured to serve from that origin is
+ * recognised as the hosted app rather than a local backend.
+ */
+const DEFAULT_HOSTED_APP_URL = "https://app.t3.codes";
 
 export interface HostedPairingRequest {
   readonly host: string;
@@ -68,28 +73,4 @@ export function readHostedPairingRequest(url: URL = new URL(window.location.href
 
 export function hasHostedPairingRequest(url: URL = new URL(window.location.href)): boolean {
   return readHostedPairingRequest(url) !== null;
-}
-
-export function buildHostedPairingUrl(input: {
-  readonly host: string;
-  readonly token: string;
-  readonly label?: string | null;
-}): string {
-  const url = new URL("/pair", configuredHostedAppUrl());
-  url.searchParams.set("host", input.host);
-
-  const label = input.label?.trim();
-  if (label) {
-    url.searchParams.set("label", label);
-  }
-
-  return setPairingTokenOnUrl(url, input.token).toString();
-}
-
-export function buildHostedChannelSelectionUrl(input: {
-  readonly channel: HostedAppChannel;
-}): string {
-  const url = new URL("/__t3code/channel", configuredHostedAppUrl());
-  url.searchParams.set("channel", input.channel);
-  return url.toString();
 }

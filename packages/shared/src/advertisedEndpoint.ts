@@ -1,6 +1,5 @@
 import type {
   AdvertisedEndpoint,
-  AdvertisedEndpointHostedHttpsCompatibility,
   AdvertisedEndpointProvider,
   AdvertisedEndpointReachability,
   AdvertisedEndpointSource,
@@ -13,7 +12,6 @@ export interface CreateAdvertisedEndpointInput {
   readonly provider: AdvertisedEndpointProvider;
   readonly httpBaseUrl: string;
   readonly reachability: AdvertisedEndpointReachability;
-  readonly hostedHttpsCompatibility?: AdvertisedEndpointHostedHttpsCompatibility;
   readonly desktopCompatibility?: "compatible" | "unknown";
   readonly source: AdvertisedEndpointSource;
   readonly status?: AdvertisedEndpointStatus;
@@ -45,17 +43,6 @@ export function deriveWsBaseUrl(httpBaseUrl: string): string {
   return url.toString();
 }
 
-export function classifyHostedHttpsCompatibility(
-  httpBaseUrl: string,
-  fallback: AdvertisedEndpointHostedHttpsCompatibility = "unknown",
-): AdvertisedEndpointHostedHttpsCompatibility {
-  const url = new URL(normalizeHttpBaseUrl(httpBaseUrl));
-  if (url.protocol === "http:") {
-    return "mixed-content-blocked";
-  }
-  return fallback === "mixed-content-blocked" ? "unknown" : fallback;
-}
-
 export function createAdvertisedEndpoint(input: CreateAdvertisedEndpointInput): AdvertisedEndpoint {
   const httpBaseUrl = normalizeHttpBaseUrl(input.httpBaseUrl);
   return {
@@ -66,8 +53,6 @@ export function createAdvertisedEndpoint(input: CreateAdvertisedEndpointInput): 
     wsBaseUrl: deriveWsBaseUrl(httpBaseUrl),
     reachability: input.reachability,
     compatibility: {
-      hostedHttpsApp:
-        input.hostedHttpsCompatibility ?? classifyHostedHttpsCompatibility(httpBaseUrl),
       desktopApp: input.desktopCompatibility ?? "compatible",
     },
     source: input.source,

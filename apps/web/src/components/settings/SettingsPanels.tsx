@@ -54,7 +54,6 @@ import {
   useEnvironmentStageLabel,
 } from "../SidebarStageBackdrop";
 import { isElectron } from "../../env";
-import { buildHostedChannelSelectionUrl, type HostedAppChannel } from "../../hostedPairing";
 import { useCustomThemes } from "../../hooks/useCustomThemes";
 import {
   readAppearanceModePreference,
