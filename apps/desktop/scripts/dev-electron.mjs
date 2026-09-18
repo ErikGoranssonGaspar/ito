@@ -24,19 +24,13 @@ if (!Number.isInteger(port) || port <= 0) {
 const requiredFiles = [
   "dist-electron/main.cjs",
   "dist-electron/preload.cjs",
-  "dist-electron/RegionSnapShotWorker.cjs",
   "dist-electron/SnapShotAccessibilityWorker.cjs",
   "../server/dist/bin.mjs",
 ];
 const watchedDirectories = [
   {
     directory: "dist-electron",
-    files: new Set([
-      "main.cjs",
-      "preload.cjs",
-      "RegionSnapShotWorker.cjs",
-      "SnapShotAccessibilityWorker.cjs",
-    ]),
+    files: new Set(["main.cjs", "preload.cjs", "SnapShotAccessibilityWorker.cjs"]),
   },
   { directory: "../server/dist", files: new Set(["bin.mjs"]) },
 ];

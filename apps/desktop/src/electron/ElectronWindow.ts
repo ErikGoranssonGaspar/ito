@@ -10,7 +10,6 @@ import * as Schema from "effect/Schema";
 
 import * as Electron from "electron";
 
-
 const ElectronWindowCreateOptions = Schema.Struct({
   title: Schema.NullOr(Schema.String),
   width: Schema.NullOr(Schema.Number),
@@ -87,7 +86,6 @@ export class ElectronWindow extends Context.Service<
     readonly focusedMainOrFirst: Effect.Effect<Option.Option<Electron.BrowserWindow>>;
     readonly setMain: (window: Electron.BrowserWindow) => Effect.Effect<void>;
     readonly clearMain: (window: Option.Option<Electron.BrowserWindow>) => Effect.Effect<void>;
-    readonly prepareReveal: (window: Electron.BrowserWindow) => Effect.Effect<boolean>;
     readonly reveal: (window: Electron.BrowserWindow) => Effect.Effect<void>;
     readonly sendAll: (channel: string, ...args: readonly unknown[]) => Effect.Effect<void>;
     readonly destroyAll: Effect.Effect<void>;
@@ -210,7 +208,6 @@ export const make = Effect.gen(function* () {
         }
         return Option.none();
       }),
-    prepareReveal: () => Effect.succeed(false),
     reveal: (window) =>
       Effect.tryPromise({
         try: async () => {

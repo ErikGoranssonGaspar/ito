@@ -9,9 +9,7 @@ import {
   capturedImageBounds,
   compactAccessibilityTree,
   findAccessibleWindow,
-  findCaptureSource,
   hideAndWaitForBlur,
-  isWaylandSession,
   snapShotShortcutRegistrationFailureMessage,
   snapShotShortcutSystemConflict,
   toElectronAccelerator,
@@ -22,7 +20,6 @@ describe("window capture errors", () => {
   it.each([
     ["unsupported", "SnapShots are not supported here."],
     ["disabled", "Enable SnapShots in Settings first."],
-    ["no-window-selected", "No window was selected."],
     ["window-unavailable", "The active window is not available for capture."],
     ["capture", "Could not capture the active window."],
   ] as const)("keeps %s failures user-facing", (operation, message) => {
@@ -391,133 +388,7 @@ describe("findAccessibleWindow", () => {
     ).toBeUndefined();
   });
 
-  it("matches a Wayland window whose accessibility provider omits its screen position", () => {
-    const captured = {
-      title: "hello world (Draft) - Text Editor",
-      bounds: { x: 479, y: 342, width: 700, height: 520 },
-    };
-    const windows = [{ name: captured.title, bounds: { x: 0, y: 0, width: 700, height: 520 } }];
-
-    expect(findAccessibleWindow(windows, captured, "wayland")).toBe(windows[0]);
-    expect(findAccessibleWindow(windows, captured)).toBeUndefined();
-  });
-
-  it("matches a decorated Wayland window by its verified client size", () => {
-    const clientBounds = { x: 100, y: 229, width: 800, height: 571 };
-    const windows = [{ name: captured.title, bounds: { ...clientBounds, x: 0, y: 0 } }];
-    expect(findAccessibleWindow(windows, { ...captured, clientBounds }, "wayland")).toBe(
-      windows[0],
-    );
-    expect(findAccessibleWindow(windows, { ...captured, clientBounds })).toBeUndefined();
-    expect(findAccessibleWindow(windows, captured, "wayland")).toBeUndefined();
-  });
-
-  it("does not guess between client-size and frame-size matches", () => {
-    const clientBounds = { x: 100, y: 229, width: 800, height: 571 };
-    const windows = [
-      { name: captured.title, bounds: clientBounds },
-      { name: captured.title, bounds: captured.bounds },
-    ];
-    expect(findAccessibleWindow(windows, { ...captured, clientBounds }, "wayland")).toBeUndefined();
-    expect(
-      findAccessibleWindow(
-        [
-          { name: "Private", bounds: clientBounds },
-          { name: captured.title, bounds: { ...clientBounds, height: 550 } },
-        ],
-        { ...captured, clientBounds },
-        "wayland",
-      ),
-    ).toBeUndefined();
-  });
-
-  it("distinguishes same-title Wayland windows by size", () => {
-    const windows = [
-      { name: "Editor", bounds: { x: 0, y: 0, width: 400, height: 300 } },
-      { name: "Editor", bounds: { x: 0, y: 0, width: 801, height: 599 } },
-    ];
-
-    expect(findAccessibleWindow(windows, captured, "wayland")).toBe(windows[1]);
-  });
-
-  it.each([
-    { name: "Private", bounds: { x: 0, y: 0, width: 800, height: 600 } },
-    { name: "Editor", bounds: { x: 0, y: 0, width: 400, height: 600 } },
-    { name: "Editor", bounds: { x: 0, y: 0, width: 800, height: 300 } },
-    { name: "Editor", bounds: null },
-  ])("rejects an unverified Wayland window: %j", (window) => {
-    expect(findAccessibleWindow([window], captured, "wayland")).toBeUndefined();
-  });
-
-  it("rejects ambiguous Wayland windows even when one reports the captured screen position", () => {
-    const windows = [
-      { name: "Editor", bounds: captured.bounds },
-      { name: "Editor", bounds: { x: 0, y: 0, width: 800, height: 600 } },
-    ];
-
-    expect(findAccessibleWindow(windows, captured, "wayland")).toBeUndefined();
-  });
-
-  it("does not match an untitled Wayland window by size alone", () => {
-    const windows = [{ name: "", bounds: captured.bounds }];
-
-    expect(findAccessibleWindow(windows, { ...captured, title: "" }, "wayland")).toBeUndefined();
-  });
-
-  it.each(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"])(
-    "ignores a leading Wayland title spinner frame %s",
-    (frame) => {
-      const windows = [{ name: `${frame} t3code`, bounds: captured.bounds }];
-
-      expect(findAccessibleWindow(windows, { ...captured, title: "⠋ t3code" }, "wayland")).toBe(
-        windows[0],
-      );
-    },
-  );
-
-  it.each([
-    ["⠋ t3code", "t3code"],
-    ["t3code", "⠙ t3code"],
-  ])("matches a Wayland spinner starting or stopping: %s → %s", (title, name) => {
-    const windows = [{ name, bounds: captured.bounds }];
-
-    expect(findAccessibleWindow(windows, { ...captured, title }, "wayland")).toBe(windows[0]);
-  });
-
-  it.each([
-    ["⠋ t3code", "⠙ private"],
-    ["t3code ⠋", "t3code ⠙"],
-    ["⠋t3code", "⠙t3code"],
-    ["⠁ t3code", "⠙ t3code"],
-    ["⠋", "⠋"],
-  ])("does not guess a Wayland title match: %s → %s", (title, name) => {
-    expect(
-      findAccessibleWindow([{ name, bounds: captured.bounds }], { ...captured, title }, "wayland"),
-    ).toBeUndefined();
-  });
-
-  it("rejects matching spinners when the window sizes differ", () => {
-    expect(
-      findAccessibleWindow(
-        [{ name: "⠙ t3code", bounds: { ...captured.bounds, width: 400 } }],
-        { ...captured, title: "⠋ t3code" },
-        "wayland",
-      ),
-    ).toBeUndefined();
-  });
-
-  it("rejects ambiguous normalized titles even if one matches the captured spinner exactly", () => {
-    const windows = [
-      { name: "⠋ t3code", bounds: captured.bounds },
-      { name: "⠙ t3code", bounds: captured.bounds },
-    ];
-
-    expect(
-      findAccessibleWindow(windows, { ...captured, title: "⠋ t3code" }, "wayland"),
-    ).toBeUndefined();
-  });
-
-  it("keeps exact title matching outside Wayland", () => {
+  it("keeps exact title matching", () => {
     expect(
       findAccessibleWindow([{ name: "⠙ t3code", bounds: captured.bounds }], {
         ...captured,
@@ -608,101 +479,6 @@ describe("toElectronAccelerator", () => {
       }),
     ).toBe("Control+Alt+Up");
   });
-});
-
-describe("findCaptureSource", () => {
-  const sources = [
-    { id: "window:42:0", name: "Terminal" },
-    { id: "window:84:0", name: "Editor" },
-  ];
-
-  it("matches the native window id before its title", () => {
-    expect(
-      findCaptureSource(sources, {
-        id: 84,
-        title: "Changed title",
-      }),
-    ).toEqual(sources[1]);
-  });
-
-  it("falls back to a unique title match", () => {
-    expect(
-      findCaptureSource(sources, {
-        id: 100,
-        title: "Terminal",
-      }),
-    ).toEqual(sources[0]);
-  });
-
-  it("does not guess when a title is ambiguous", () => {
-    expect(
-      findCaptureSource(
-        [
-          { id: "window:42:0", name: "Editor" },
-          { id: "window:84:0", name: "Editor" },
-        ],
-        {
-          id: 100,
-          title: "Editor",
-        },
-      ),
-    ).toBeUndefined();
-  });
-});
-
-describe("isWaylandSession", () => {
-  it.each([
-    ["linux", { XDG_SESSION_TYPE: "wayland" }, true],
-    ["linux", { WAYLAND_DISPLAY: "wayland-0" }, true],
-    ["linux", { XDG_SESSION_TYPE: "x11" }, false],
-    ["darwin", { XDG_SESSION_TYPE: "wayland", WAYLAND_DISPLAY: "wayland-0" }, false],
-  ] as const)("detects %s session %o as portal=%s", (platform, environment, expected) => {
-    expect(isWaylandSession(platform, environment)).toBe(expected);
-  });
-
-  effectIt.effect(
-    "falls back to a live runtime directory socket when session variables are stripped",
-    () =>
-      Effect.gen(function* () {
-        if ((yield* HostProcessPlatform) !== "linux") return;
-        yield* Effect.promise(async () => {
-          const { mkdtemp, rm, writeFile } = await import("node:fs/promises");
-          const { createServer } = await import("node:net");
-          const { tmpdir } = await import("node:os");
-          const { join } = await import("node:path");
-          const runtimeDirectory = await mkdtemp(join(tmpdir(), "t3-wayland-"));
-          const socketPath = join(runtimeDirectory, "wayland-0");
-          const server = createServer();
-          try {
-            expect(isWaylandSession("linux", { XDG_RUNTIME_DIR: runtimeDirectory })).toBe(false);
-            await writeFile(socketPath, "");
-            expect(isWaylandSession("linux", { XDG_RUNTIME_DIR: runtimeDirectory })).toBe(false);
-            await rm(socketPath);
-            await new Promise<void>((resolve, reject) => {
-              server.once("error", reject);
-              server.listen(socketPath, resolve);
-            });
-            expect(isWaylandSession("linux", { XDG_RUNTIME_DIR: runtimeDirectory })).toBe(true);
-            expect(
-              isWaylandSession("linux", {
-                XDG_RUNTIME_DIR: runtimeDirectory,
-                XDG_SESSION_TYPE: "x11",
-              }),
-            ).toBe(false);
-            expect(isWaylandSession("linux", { XDG_RUNTIME_DIR: "/nonexistent-t3-test" })).toBe(
-              false,
-            );
-          } finally {
-            if (server.listening) {
-              await new Promise<void>((resolve, reject) => {
-                server.close((error) => (error ? reject(error) : resolve()));
-              });
-            }
-            await rm(runtimeDirectory, { recursive: true, force: true });
-          }
-        });
-      }),
-  );
 });
 
 describe("snapShotShortcutRegistrationFailureMessage", () => {

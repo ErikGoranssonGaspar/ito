@@ -1,8 +1,4 @@
 // @effect-diagnostics globalTimers:off -- The Electron window-blur handshake uses a native timeout outside any Effect fiber.
-// @effect-diagnostics nodeBuiltinImport:off -- This desktop-only platform check reads procfs and resolves Wayland socket paths with Node.
-
-import * as NodeFS from "node:fs";
-import * as NodePath from "node:path";
 
 import {
   SNAP_SHOT_ACCESSIBILITY_MAX_NODES,
@@ -467,26 +463,14 @@ export function findAccessibleWindow<
     readonly bounds: WindowBounds;
     readonly clientBounds?: WindowBounds | undefined;
   },
-  matchMode: "screen-bounds" | "wayland" = "screen-bounds",
 ): T | undefined {
-  const normalizeTitle = (value: string) => {
-    const title = value.trim();
-    // Terminal apps can animate a leading CLI spinner between capture and AT-SPI lookup.
-    return matchMode === "wayland" ? title.replace(/^[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏](?:\s+|$)/u, "") : title;
-  };
+  const normalizeTitle = (value: string) => value.trim();
   const titles = new Set(
     [captured.title, captured.sourceTitle ?? ""].map(normalizeTitle).filter(Boolean),
   );
   if (titles.size === 0) return undefined;
-  // Wayland accessibility providers can expose window size without a screen position.
-  const boundsKeys =
-    matchMode === "wayland"
-      ? (["width", "height"] as const)
-      : (["x", "y", "width", "height"] as const);
-  const candidateBounds =
-    matchMode === "wayland" && captured.clientBounds
-      ? [captured.bounds, captured.clientBounds]
-      : [captured.bounds];
+  const boundsKeys = ["x", "y", "width", "height"] as const;
+  const candidateBounds = [captured.bounds];
   const matches = windows.filter((window) => {
     const bounds = window.bounds;
     return (
@@ -533,59 +517,4 @@ export function toElectronAccelerator(shortcut: SnapShotKeyChord): string {
   if (shortcut.shiftKey) parts.push("Shift");
   parts.push(ELECTRON_KEY_NAMES[shortcut.key] ?? shortcut.key.toUpperCase());
   return parts.join("+");
-}
-
-interface CaptureSourceLike {
-  readonly id: string;
-  readonly name: string;
-}
-
-interface ActiveWindowLike {
-  readonly id: number;
-  readonly title: string;
-}
-
-export function findCaptureSource<T extends CaptureSourceLike>(
-  sources: readonly T[],
-  activeWindow: ActiveWindowLike,
-): T | undefined {
-  const idPrefix = `window:${activeWindow.id}:`;
-  const idMatch = sources.find((source) => source.id.startsWith(idPrefix));
-  if (idMatch) return idMatch;
-
-  const title = activeWindow.title.trim();
-  if (!title) return undefined;
-  const titleMatches = sources.filter((source) => source.name.trim() === title);
-  return titleMatches.length === 1 ? titleMatches[0] : undefined;
-}
-
-export function isWaylandSession(
-  platform: NodeJS.Platform,
-  environment: NodeJS.ProcessEnv,
-): boolean {
-  if (platform !== "linux") return false;
-  if (
-    environment.XDG_SESSION_TYPE?.toLowerCase() === "wayland" ||
-    Boolean(environment.WAYLAND_DISPLAY)
-  ) {
-    return true;
-  }
-  if (environment.XDG_SESSION_TYPE?.toLowerCase() === "x11") return false;
-  const runtimeDirectory = environment.XDG_RUNTIME_DIR;
-  if (!runtimeDirectory) return false;
-  try {
-    const liveSockets = new Set(
-      NodeFS.readFileSync("/proc/net/unix", "utf8")
-        .split("\n")
-        .flatMap((line) => line.match(/\s(\/.*)$/)?.[1] ?? []),
-    );
-    return NodeFS.readdirSync(runtimeDirectory, { withFileTypes: true }).some(
-      (entry) =>
-        /^wayland-\d+$/.test(entry.name) &&
-        entry.isSocket() &&
-        liveSockets.has(NodePath.join(runtimeDirectory, entry.name)),
-    );
-  } catch {
-    return false;
-  }
 }

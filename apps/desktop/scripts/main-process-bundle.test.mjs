@@ -10,10 +10,7 @@ import desktopConfig from "../vite.config.ts";
 it("keeps lazy imports and worker bundles from executing desktop startup twice", async () => {
   const directory = await NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "t3-desktop-bundle-"));
   try {
-    const workerEntries = [
-      "src/snapShot/RegionSnapShotWorker.ts",
-      "src/snapShot/SnapShotAccessibilityWorker.ts",
-    ];
+    const workerEntries = ["src/snapShot/SnapShotAccessibilityWorker.ts"];
     await Promise.all([
       NodeFSP.mkdir(NodePath.join(directory, "src/snapShot"), { recursive: true }),
     ]);
@@ -99,7 +96,7 @@ void import("./lazy.ts").then(({ result }) => process.emit("ready", result));`,
     for (const entry of workerEntries) {
       load(NodePath.join(outputDirectory, NodePath.basename(entry).replace(/\.ts$/, ".cjs")));
     }
-    assert.deepEqual(workers, [42, 42]);
+    assert.deepEqual(workers, [42]);
     assert.deepEqual(startups, [42]);
   } finally {
     await NodeFSP.rm(directory, { recursive: true, force: true });

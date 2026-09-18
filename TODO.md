@@ -15,6 +15,8 @@ This tracks the reduction of the T3 Code fork. The longer-term product direction
 - [x] Remove Linux desktop-entry URL registration and pre-ready password-store setup from the Electron startup path.
 - [x] Remove the unused Linux password-store setting and its helper.
 - [x] Remove the Linux browser-secret helper and Chromium cookie import path from the desktop build.
+- [x] Remove the GNOME, KDE, Hyprland, Niri, and xdg-portal screen-capture backends, the
+      Windows capture overlay and region worker, and their setup UI, leaving macOS capture.
 - [x] Preserve this checkout's `.t3` data and settings.
 
 ## Next cleanup passes
