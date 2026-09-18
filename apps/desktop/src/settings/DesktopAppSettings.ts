@@ -14,7 +14,6 @@ import * as Schema from "effect/Schema";
 import * as SynchronizedRef from "effect/SynchronizedRef";
 
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
-import { isValidDistroName } from "../wsl/wslPathParsing.ts";
 
 export interface DesktopSettings {
   readonly localEnvironmentEnabled: boolean;
@@ -23,21 +22,6 @@ export interface DesktopSettings {
   readonly serverExposureMode: DesktopServerExposureMode;
   readonly tailscaleServeEnabled: boolean;
   readonly tailscaleServePort: number;
-  // Was a "local" | "wsl" swap mode in an earlier iteration of the WSL
-  // integration. We now run Windows and WSL backends side by side, so the
-  // setting is just whether the WSL backend should be running alongside the
-  // primary. Persisted documents that still carry the legacy `wslMode: "wsl"`
-  // value are migrated to `wslBackendEnabled: true` on load.
-  readonly wslBackendEnabled: boolean;
-  readonly wslDistro: string | null;
-  // When true (and wslBackendEnabled is also true) the desktop runs only
-  // the WSL backend as the primary, and the Windows-side Node backend is
-  // not started. Designed for users who develop entirely inside WSL and
-  // don't want a second backend process running. Defaults to false so
-  // existing setups stay on the parallel-backends behavior. Changing
-  // this requires a desktop restart because the pool's primary spec is
-  // chosen once at layer init.
-  readonly wslOnly: boolean;
 }
 
 export interface DesktopSettingsChange {
@@ -69,9 +53,6 @@ export const DEFAULT_DESKTOP_SETTINGS: DesktopSettings = {
   serverExposureMode: "local-only",
   tailscaleServeEnabled: false,
   tailscaleServePort: DEFAULT_TAILSCALE_SERVE_PORT,
-  wslBackendEnabled: false,
-  wslDistro: null,
-  wslOnly: false,
 };
 
 const DesktopWindowBoundsDocument = Schema.Struct({
@@ -88,13 +69,6 @@ const DesktopSettingsDocument = Schema.Struct({
   serverExposureMode: Schema.optionalKey(DesktopServerExposureModeSchema),
   tailscaleServeEnabled: Schema.optionalKey(Schema.Boolean),
   tailscaleServePort: Schema.optionalKey(Schema.Number),
-  // Newer form of the WSL toggle. `wslMode` is still accepted on load so
-  // existing on-disk settings keep working; on the next persist we write the
-  // new boolean and the legacy key drops out.
-  wslBackendEnabled: Schema.optionalKey(Schema.Boolean),
-  wslMode: Schema.optionalKey(Schema.Literals(["local", "wsl"])),
-  wslDistro: Schema.optionalKey(Schema.NullOr(Schema.String)),
-  wslOnly: Schema.optionalKey(Schema.Boolean),
 });
 
 type DesktopSettingsDocument = typeof DesktopSettingsDocument.Type;
@@ -152,20 +126,6 @@ export class DesktopAppSettings extends Context.Service<
       readonly enabled: boolean;
       readonly port: Option.Option<number>;
     }) => Effect.Effect<DesktopSettingsChange, DesktopSettingsWriteError>;
-    readonly setWslBackendEnabled: (
-      enabled: boolean,
-    ) => Effect.Effect<DesktopSettingsChange, DesktopSettingsWriteError>;
-    readonly setWslDistro: (
-      distro: string | null,
-    ) => Effect.Effect<DesktopSettingsChange, DesktopSettingsWriteError>;
-    readonly setWslOnly: (
-      enabled: boolean,
-    ) => Effect.Effect<DesktopSettingsChange, DesktopSettingsWriteError>;
-    readonly applyWslWindowsFallback: Effect.Effect<
-      DesktopSettingsChange,
-      DesktopSettingsWriteError
-    >;
-    readonly applyWslWindowsFallbackInMemory: Effect.Effect<DesktopSettingsChange>;
   }
 >()("@t3tools/desktop/settings/DesktopAppSettings") {}
 
@@ -179,23 +139,12 @@ function normalizeTailscaleServePort(value: unknown): number {
     : DEFAULT_TAILSCALE_SERVE_PORT;
 }
 
-function normalizeWslDistro(value: unknown): string | null {
-  return typeof value === "string" && isValidDistroName(value) ? value : null;
-}
-
 export function normalizeMainWindowBounds(value: unknown): DesktopWindowBounds | null {
   return Option.getOrNull(decodeDesktopWindowBounds(value));
 }
 
 function normalizeDesktopSettingsDocument(parsed: DesktopSettingsDocument): DesktopSettings {
   const mainWindowBounds = normalizeMainWindowBounds(parsed.mainWindowBounds);
-
-  // Newer form wins when both are present; otherwise fall back to the legacy
-  // `wslMode === "wsl"` signal so users coming off the swap-mode build keep
-  // their WSL backend enabled.
-  const wslBackendEnabled =
-    parsed.wslBackendEnabled === true ||
-    (parsed.wslBackendEnabled === undefined && parsed.wslMode === "wsl");
 
   return {
     localEnvironmentEnabled: parsed.localEnvironmentEnabled !== false,
@@ -205,9 +154,6 @@ function normalizeDesktopSettingsDocument(parsed: DesktopSettingsDocument): Desk
       parsed.serverExposureMode === "network-accessible" ? "network-accessible" : "local-only",
     tailscaleServeEnabled: parsed.tailscaleServeEnabled === true,
     tailscaleServePort: normalizeTailscaleServePort(parsed.tailscaleServePort),
-    wslBackendEnabled,
-    wslDistro: normalizeWslDistro(parsed.wslDistro),
-    wslOnly: parsed.wslOnly === true,
   };
 }
 
@@ -235,15 +181,6 @@ function toDesktopSettingsDocument(
   }
   if (settings.tailscaleServePort !== defaults.tailscaleServePort) {
     document.tailscaleServePort = settings.tailscaleServePort;
-  }
-  if (settings.wslBackendEnabled !== defaults.wslBackendEnabled) {
-    document.wslBackendEnabled = settings.wslBackendEnabled;
-  }
-  if (settings.wslDistro !== defaults.wslDistro) {
-    document.wslDistro = settings.wslDistro;
-  }
-  if (settings.wslOnly !== defaults.wslOnly) {
-    document.wslOnly = settings.wslOnly;
   }
 
   return document;
@@ -294,42 +231,10 @@ function setTailscaleServe(
       };
 }
 
-function setWslBackendEnabled(settings: DesktopSettings, enabled: boolean): DesktopSettings {
-  return settings.wslBackendEnabled === enabled
-    ? settings
-    : {
-        ...settings,
-        wslBackendEnabled: enabled,
-      };
-}
-
-function setWslDistro(settings: DesktopSettings, distro: string | null): DesktopSettings {
-  const normalized = normalizeWslDistro(distro);
-  return settings.wslDistro === normalized
-    ? settings
-    : {
-        ...settings,
-        wslDistro: normalized,
-      };
-}
-
-function setWslOnly(settings: DesktopSettings, enabled: boolean): DesktopSettings {
-  return settings.wslOnly === enabled
-    ? settings
-    : {
-        ...settings,
-        wslOnly: enabled,
-      };
-}
-
 function setLocalEnvironmentEnabled(settings: DesktopSettings, enabled: boolean): DesktopSettings {
   return settings.localEnvironmentEnabled === enabled
     ? settings
     : { ...settings, localEnvironmentEnabled: enabled };
-}
-
-function applyWslWindowsFallback(settings: DesktopSettings): DesktopSettings {
-  return setWslOnly(setWslBackendEnabled(settings, false), false);
 }
 
 function readSettings(
@@ -480,30 +385,10 @@ export const make = Effect.gen(function* () {
       persist((settings) => setTailscaleServe(settings, input)).pipe(
         Effect.withSpan("desktop.settings.setTailscaleServe", { attributes: input }),
       ),
-    setWslBackendEnabled: (enabled) =>
-      persist((settings) => setWslBackendEnabled(settings, enabled)).pipe(
-        Effect.withSpan("desktop.settings.setWslBackendEnabled", { attributes: { enabled } }),
-      ),
-    setWslDistro: (distro) =>
-      persist((settings) => setWslDistro(settings, distro)).pipe(
-        Effect.withSpan("desktop.settings.setWslDistro", {
-          attributes: { distro: distro ?? null },
-        }),
-      ),
-    setWslOnly: (enabled) =>
-      persist((settings) => setWslOnly(settings, enabled)).pipe(
-        Effect.withSpan("desktop.settings.setWslOnly", { attributes: { enabled } }),
-      ),
     setLocalEnvironmentEnabled: (enabled) =>
       persist((settings) => setLocalEnvironmentEnabled(settings, enabled)).pipe(
         Effect.withSpan("desktop.settings.setLocalEnvironmentEnabled", { attributes: { enabled } }),
       ),
-    applyWslWindowsFallback: persist(applyWslWindowsFallback).pipe(
-      Effect.withSpan("desktop.settings.applyWslWindowsFallback"),
-    ),
-    applyWslWindowsFallbackInMemory: updateInMemory(applyWslWindowsFallback).pipe(
-      Effect.withSpan("desktop.settings.applyWslWindowsFallbackInMemory"),
-    ),
   });
 });
 
@@ -534,14 +419,8 @@ export const layerTest = (initialSettings: DesktopSettings = DEFAULT_DESKTOP_SET
         setServerExposureMode: (mode) =>
           update((settings) => setServerExposureMode(settings, mode)),
         setTailscaleServe: (input) => update((settings) => setTailscaleServe(settings, input)),
-        setWslBackendEnabled: (enabled) =>
-          update((settings) => setWslBackendEnabled(settings, enabled)),
-        setWslDistro: (distro) => update((settings) => setWslDistro(settings, distro)),
-        setWslOnly: (enabled) => update((settings) => setWslOnly(settings, enabled)),
         setLocalEnvironmentEnabled: (enabled) =>
           update((settings) => setLocalEnvironmentEnabled(settings, enabled)),
-        applyWslWindowsFallback: update(applyWslWindowsFallback),
-        applyWslWindowsFallbackInMemory: update(applyWslWindowsFallback),
       });
     }),
   );

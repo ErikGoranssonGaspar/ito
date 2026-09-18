@@ -19,12 +19,15 @@ This tracks the reduction of the T3 Code fork. The longer-term product direction
       Windows capture overlay and region worker, and their setup UI, leaving macOS capture.
 - [x] Remove the desktop auto-updater: electron-updater, update channels and release notes,
       the update IPC and sidebar/settings update UI, and the server's desktop-update bridge.
+- [x] Remove the WSL backend: its environment probe, server tree, path helpers, orchestrator,
+      settings, IPC and Connections UI, collapsing the backend pool to the single local backend.
 - [x] Preserve this checkout's `.t3` data and settings.
 
 ## Next cleanup passes
 
 - [ ] Trace and remove remaining T3 account, relay, remote connection, and hosted-browser code shared with the desktop renderer and server.
-- [ ] Remove remaining Windows, Linux, and WSL code from retained packages.
+- [ ] Remove remaining Windows and Linux code from retained packages (Chromium cookie import,
+      platform branches in the server and renderer).
 - [ ] Remove the server's own self-update and service-launcher distribution paths, which now
       only report that the desktop app manages this server.
 - [ ] Prune dependencies, license overrides, tests, and documentation made obsolete by those cuts.

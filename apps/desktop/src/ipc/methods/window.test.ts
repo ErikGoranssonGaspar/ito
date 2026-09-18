@@ -28,7 +28,7 @@ import {
   pickProjectFavicon,
 } from "./window.ts";
 
-const readyWslConfig: DesktopBackendManager.DesktopBackendStartConfig = {
+const readyConfig: DesktopBackendManager.DesktopBackendStartConfig = {
   executablePath: "wsl.exe",
   args: ["-d", "Ubuntu", "--", "node", "/app/bin.mjs"],
   entryPath: "/app/bin.mjs",
@@ -48,15 +48,14 @@ const readyWslConfig: DesktopBackendManager.DesktopBackendStartConfig = {
   httpBaseUrl: new URL("http://127.0.0.1:3774"),
   captureOutput: true,
   preflightFailure: Option.none(),
-  runningDistro: "Ubuntu",
 };
 
-const defaultWslInstance: DesktopBackendManager.DesktopBackendInstance = {
-  id: DesktopBackendManager.BackendInstanceId("wsl:default"),
-  label: Effect.succeed("WSL (default distro)"),
+const primaryInstance: DesktopBackendManager.DesktopBackendInstance = {
+  id: DesktopBackendManager.PRIMARY_INSTANCE_ID,
+  label: Effect.succeed("Local environment"),
   start: Effect.void,
   stop: () => Effect.void,
-  currentConfig: Effect.succeed(Option.some(readyWslConfig)),
+  currentConfig: Effect.succeed(Option.some(readyConfig)),
   snapshot: Effect.succeed({
     desiredRunning: true,
     ready: true,
@@ -68,35 +67,35 @@ const defaultWslInstance: DesktopBackendManager.DesktopBackendInstance = {
 };
 
 describe("getLocalEnvironmentBootstraps", () => {
-  it.effect("publishes the concrete running distro without replacing the stable instance id", () =>
+  it.effect("publishes the running backend's endpoints and bootstrap token", () =>
     Effect.gen(function* () {
       const result = yield* getLocalEnvironmentBootstraps.handler();
 
       assert.deepEqual(result, [
         {
-          id: "wsl:default",
-          label: "WSL (Ubuntu)",
-          runningDistro: "Ubuntu",
+          id: "primary",
+          label: "Local environment",
           httpBaseUrl: "http://127.0.0.1:3774/",
           wsBaseUrl: "ws://127.0.0.1:3774/",
           bootstrapToken: "bootstrap-token",
         },
       ]);
-    }).pipe(Effect.provide(DesktopBackendPool.layerTest([defaultWslInstance]))),
+    }).pipe(Effect.provide(DesktopBackendPool.layerTest([primaryInstance]))),
   );
 
-  it.effect("publishes a pending bootstrap only while a transient retry is scheduled", () => {
-    const retryingConfig: DesktopBackendManager.DesktopBackendStartConfig = {
-      ...readyWslConfig,
-      preflightFailure: Option.some({
-        reason: "WSL probe timed out",
-        fatal: false,
-        retryLimit: 12,
-      }),
-    };
+  it.effect("omits a backend that is still retrying preflight", () => {
     const retryingInstance: DesktopBackendManager.DesktopBackendInstance = {
-      ...defaultWslInstance,
-      currentConfig: Effect.succeed(Option.some(retryingConfig)),
+      ...primaryInstance,
+      currentConfig: Effect.succeed(
+        Option.some({
+          ...readyConfig,
+          preflightFailure: Option.some({
+            reason: "backend probe timed out",
+            fatal: false,
+            retryLimit: 12,
+          }),
+        }),
+      ),
       snapshot: Effect.succeed({
         desiredRunning: true,
         ready: false,
@@ -107,45 +106,8 @@ describe("getLocalEnvironmentBootstraps", () => {
     };
 
     return Effect.gen(function* () {
-      const result = yield* getLocalEnvironmentBootstraps.handler();
-      assert.deepEqual(result, [
-        {
-          id: "wsl:default",
-          label: "WSL (default distro)",
-          runningDistro: null,
-          httpBaseUrl: null,
-          wsBaseUrl: null,
-        },
-      ]);
+      assert.deepEqual(yield* getLocalEnvironmentBootstraps.handler(), []);
     }).pipe(Effect.provide(DesktopBackendPool.layerTest([retryingInstance])));
-  });
-
-  it.effect("omits a bounded transient bootstrap after retries stop", () => {
-    const stoppedInstance: DesktopBackendManager.DesktopBackendInstance = {
-      ...defaultWslInstance,
-      currentConfig: Effect.succeed(
-        Option.some({
-          ...readyWslConfig,
-          preflightFailure: Option.some({
-            reason: "WSL probe timed out",
-            fatal: false,
-            retryLimit: 12,
-          }),
-        }),
-      ),
-      snapshot: Effect.succeed({
-        desiredRunning: false,
-        ready: false,
-        activePid: Option.none(),
-        restartAttempt: 12,
-        restartScheduled: false,
-      }),
-    };
-
-    return Effect.gen(function* () {
-      const result = yield* getLocalEnvironmentBootstraps.handler();
-      assert.deepEqual(result, []);
-    }).pipe(Effect.provide(DesktopBackendPool.layerTest([stoppedInstance])));
   });
 });
 
