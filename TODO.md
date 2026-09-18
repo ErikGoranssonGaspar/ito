@@ -23,14 +23,18 @@ This tracks the reduction of the T3 Code fork. The longer-term product direction
       settings, IPC and Connections UI, collapsing the backend pool to the single local backend.
 - [x] Remove the server's own self-update: the npm/archive distribution path, the background
       service launcher and its protocol, and the server-update RPCs, state, and UI.
+- [x] Remove the T3 cloud service and relay: the server's cloud link, CLI token manager,
+      managed endpoint runtime and awareness relay; the renderer's T3 Connect onboarding,
+      DPoP client auth, managed-relay state and hosted-browser pairing; the relay connection
+      target; and the cloudflared relay-client installer with its RPCs. SSH environments and
+      the environment registry are kept.
 - [x] Preserve this checkout's `.t3` data and settings.
 
 ## Next cleanup passes
 
-- [ ] Remove the T3 cloud service, relay, and hosted-browser code shared with the desktop
-      renderer and server. Scope decided with the owner: remove relay/cloud, but **keep SSH
-      environments and the environment registry** — ito stays able to reach other machines
-      over SSH, it just has no T3-hosted account, relay, or hosted web app.
+- [ ] Remove the server-side DPoP proof-of-possession auth left over from the relay. Only
+      Bearer auth is used now, but the session store, persistence schemas and HTTP auth still
+      carry proof-key thumbprints, so this needs care with already-stored `.t3` sessions.
 - [ ] Remove remaining Windows and Linux code from retained packages (Chromium cookie import,
       platform branches in the server and renderer).
 - [ ] Prune dependencies, license overrides, tests, and documentation made obsolete by those cuts.

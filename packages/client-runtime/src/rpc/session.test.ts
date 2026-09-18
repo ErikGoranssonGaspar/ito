@@ -30,7 +30,6 @@ import {
   ConnectionBlockedError,
   ConnectionTransientError,
   PrimaryConnectionTarget,
-  RelayConnectionTarget,
   type PreparedConnection,
 } from "../connection/model.ts";
 import * as EnvironmentSupervisor from "../connection/supervisor.ts";
@@ -38,7 +37,6 @@ import * as Persistence from "../platform/persistence.ts";
 import * as RpcSession from "./session.ts";
 import { makeEnvironmentServerConfigState } from "../state/server.ts";
 import { applyServerConfigProjection } from "../state/serverConfigProjection.ts";
-import { NETWORK_BLOCKING_HINT } from "../errors/network.ts";
 
 type SocketEventType = "open" | "message" | "close" | "error";
 type SocketEvent = {
@@ -197,16 +195,6 @@ const SOURCE_EVENT: ServerConfigStreamEventType = {
         accounts: [],
       },
     ],
-  },
-};
-
-const LEGACY_SERVER_CONFIG = {
-  ...ENCODED_SERVER_CONFIG,
-  environment: {
-    ...ENCODED_SERVER_CONFIG.environment,
-    capabilities: {
-      repositoryIdentity: true,
-    },
   },
 };
 
@@ -1148,79 +1136,4 @@ describe("RpcSessionFactory", () => {
       expect(config.availableEditors).toEqual(["zed"]);
     }),
   );
-
-  it.effect("uses the legacy config RPC for probes when the server lacks the capability", () =>
-    Effect.scoped(
-      Effect.gen(function* () {
-        const { factory, sockets } = yield* makeFactory();
-        const session = yield* factory.connect(PREPARED);
-        const readyFiber = yield* Effect.forkChild(session.ready);
-        const socket = yield* awaitSocket(sockets);
-
-        socket.open();
-        yield* completeInitialConfig(socket, LEGACY_SERVER_CONFIG);
-        yield* Fiber.join(readyFiber);
-
-        const probeFiber = yield* Effect.forkChild(session.probe);
-        const probeRequest = yield* awaitRequest(socket, 1);
-        expect(probeRequest).toMatchObject({
-          _tag: "Request",
-          tag: WS_METHODS.serverGetConfig,
-          payload: {},
-        });
-        socket.serverMessage(
-          encodeJson({
-            _tag: "Exit",
-            requestId: probeRequest.id,
-            exit: {
-              _tag: "Success",
-              value: LEGACY_SERVER_CONFIG,
-            },
-          }),
-        );
-        yield* Fiber.join(probeFiber);
-
-        expect(
-          socket.sent
-            .map((message) => decodeJson(message))
-            .filter(isRpcRequest)
-            .map((request) => request.tag),
-        ).toEqual([WS_METHODS.subscribeServerConfig, WS_METHODS.serverGetConfig]);
-      }),
-    ),
-  );
-
-  for (const relay of [false, true]) {
-    it.effect(`fails readiness when the ${relay ? "relay" : "direct"} websocket never opens`, () =>
-      Effect.gen(function* () {
-        const { factory, sockets } = yield* makeFactory();
-
-        const error = yield* Effect.scoped(
-          Effect.gen(function* () {
-            const session = yield* factory.connect({
-              ...PREPARED,
-              target: relay
-                ? new RelayConnectionTarget({
-                    environmentId: TARGET.environmentId,
-                    label: TARGET.label,
-                  })
-                : TARGET,
-            });
-            const readyFiber = yield* Effect.forkChild(Effect.flip(session.ready));
-            yield* awaitSocket(sockets);
-
-            yield* TestClock.adjust("15 seconds");
-            return yield* Fiber.join(readyFiber);
-          }),
-        );
-
-        expect(error).toBeInstanceOf(ConnectionTransientError);
-        expect(error).toMatchObject({
-          reason: "transport",
-          message: `Test environment could not establish a WebSocket connection.${relay ? ` ${NETWORK_BLOCKING_HINT}` : ""}`,
-        });
-        expect(sockets[0]?.readyState).toBe(TestWebSocket.CLOSED);
-      }).pipe(Effect.provide(TestClock.layer())),
-    );
-  }
 });
