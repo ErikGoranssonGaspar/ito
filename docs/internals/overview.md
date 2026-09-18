@@ -1,17 +1,16 @@
 # Architecture
 
-T3 Code keeps execution in the environment that owns the workspace. Web, desktop, and mobile
-clients control it over authenticated RPC. A remote client must never substitute its own filesystem,
-provider credentials, or machine state for the environment's. The desktop app bundles a server,
-but its renderer follows the same boundary.
+T3 Code keeps execution in the environment that owns the workspace. Clients control it over
+authenticated RPC. A remote client must never substitute its own filesystem, provider credentials,
+or machine state for the environment's. The desktop app bundles a server, but its renderer follows
+the same boundary.
 
 ## Ownership boundaries
 
 Provider processes, terminals, Git, and project files belong to the server. Shared connection and
 domain state belongs in `packages/client-runtime`; clients supply platform services and UI.
-Keeping that logic shared prevents reconnect and multi-environment behavior from diverging between
-web and mobile. See [connection runtime](./connection-runtime.md) and
-[remote environments](./remote.md).
+Keeping that logic shared keeps reconnect and multi-environment behavior in one place. See
+[connection runtime](./connection-runtime.md).
 
 The [RPC contract](../../packages/contracts/src/rpc.ts) is the boundary between independently
 versioned clients and servers. Subscriptions send the state a client needs, so a client viewing one
@@ -20,7 +19,7 @@ method on it. See [environment auth](./environment-auth.md).
 
 ### Pull request linking compatibility
 
-Web, desktop, mobile, and environments upgrade independently. Negotiate linking through the
+A client and the environments it reaches upgrade independently. Negotiate linking through the
 environment descriptor, never through a client version or an assumed coordinated release:
 
 | Environment capability                | Client behavior                                                                                                   |

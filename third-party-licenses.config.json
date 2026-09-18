@@ -174,21 +174,6 @@
       }
     },
     {
-      "name": "glob-to-regexp",
-      "generatedNotice": {
-        "licenseId": "BSD-2-Clause",
-        "copyrights": [
-          "Copyright (c) 2013, Nick Fitzgerald"
-        ]
-      }
-    },
-    {
-      "name": "kubernetes-types",
-      "generatedNotice": {
-        "licenseId": "Apache-2.0"
-      }
-    },
-    {
       "name": "@msgpackr-extract/msgpackr-extract-linux-x64",
       "generatedNotice": {
         "licenseId": "MIT",
@@ -207,31 +192,12 @@
       }
     },
     {
-      "name": "keyv",
-      "generatedNotice": {
-        "licenseId": "MIT",
-        "copyrights": [
-          "Copyright (c) 2017-2021 Luke Childs",
-          "Copyright (c) 2021-2022 Jared Wray"
-        ]
-      }
-    },
-    {
       "license": "MIT",
       "name": "type-fest",
       "generatedNotice": {
         "licenseId": "MIT",
         "copyrights": [
           "Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)"
-        ]
-      }
-    },
-    {
-      "name": "lazy-val",
-      "generatedNotice": {
-        "licenseId": "MIT",
-        "copyrights": [
-          "Copyright (c) Vladimir Krivosheev"
         ]
       }
     },
@@ -270,20 +236,6 @@
           "Copyright (c) 2025 Stephen Crowe"
         ]
       }
-    },
-    {
-      "license": "MIT",
-      "name": "map-stream",
-      "generatedNotice": {
-        "licenseId": "MIT",
-        "copyrights": [
-          "Copyright (c) 2011 Dominic Tarr"
-        ]
-      }
-    },
-    {
-      "license": "Apache-2.0",
-      "name": "jsbi"
     },
     {
       "name": "@yuuang/ffi-rs-android-arm64",
@@ -399,138 +351,6 @@
         "licenseId": "MIT",
         "copyrights": [
           "Copyright (c) Meta Platforms, Inc. and affiliates."
-        ]
-      }
-    },
-    {
-      "name": "@react-native-ai/apple",
-      "sourceUrl": "https://github.com/callstackincubator/ai",
-      "generatedNotice": {
-        "licenseId": "MIT",
-        "copyrights": [
-          "Copyright (c) 2024-2025 Szymon Rybczak",
-          "Copyright (c) 2025-present Callstack"
-        ]
-      }
-    },
-    {
-      "name": "react-remove-scroll-bar",
-      "generatedNotice": {
-        "licenseId": "MIT",
-        "copyrights": [
-          "Copyright (c) Anton Korzunov <thekashey@gmail.com>"
-        ]
-      }
-    },
-    {
-      "name": "standard-navigation",
-      "generatedNotice": {
-        "licenseId": "MIT",
-        "copyrights": [
-          "Copyright (c) 2026 React Navigation Contributors"
-        ]
-      }
-    },
-    {
-      "name": "stream-buffers",
-      "generatedNotice": {
-        "licenseId": "Unlicense"
-      }
-    },
-    {
-      "name": "bplist-parser",
-      "generatedNotice": {
-        "licenseId": "MIT",
-        "copyrights": [
-          "Copyright (c) 2012 Near Infinity Corporation"
-        ]
-      }
-    },
-    {
-      "name": "@expo/devcert",
-      "generatedNotice": {
-        "licenseId": "MIT",
-        "copyrights": [
-          "Copyright (c) Dave Wasmer"
-        ]
-      }
-    },
-    {
-      "name": "jimp-compact",
-      "generatedNotice": {
-        "licenseId": "MIT",
-        "copyrights": [
-          "Copyright (c) 2018 Oliver Moran"
-        ]
-      }
-    },
-    {
-      "name": "fb-watchman",
-      "generatedNotice": {
-        "licenseId": "Apache-2.0"
-      }
-    },
-    {
-      "name": "bser",
-      "generatedNotice": {
-        "licenseId": "Apache-2.0"
-      }
-    },
-    {
-      "name": "@expo/xcpretty",
-      "generatedNotice": {
-        "licenseId": "BSD-3-Clause",
-        "copyrights": [
-          "Copyright (c) 2016-present, 650 Industries, Inc. (Expo)"
-        ]
-      }
-    },
-    {
-      "license": "MIT",
-      "name": "fb-dotslash",
-      "generatedNotice": {
-        "licenseId": "MIT",
-        "copyrights": [
-          "Copyright (c) Meta Platforms, Inc. and affiliates."
-        ]
-      }
-    },
-    {
-      "name": "structured-headers",
-      "generatedNotice": {
-        "licenseId": "MIT",
-        "copyrights": [
-          "Copyright (c) 2018 Evert Pot"
-        ]
-      }
-    },
-    {
-      "name": "badgin",
-      "generatedNotice": {
-        "licenseId": "MIT",
-        "copyrights": [
-          "Copyright (c) Julian Hundeloh and Tinycon contributors"
-        ],
-        "preamble": [
-          "badgin is a refactored fork of Tinycon."
-        ]
-      }
-    },
-    {
-      "name": "react-native-nitro-modules",
-      "generatedNotice": {
-        "licenseId": "MIT",
-        "copyrights": [
-          "Copyright (c) 2024 Marc Rousavy"
-        ]
-      }
-    },
-    {
-      "name": "boolbase",
-      "generatedNotice": {
-        "licenseId": "ISC",
-        "copyrights": [
-          "Copyright (c) 2014-2015, Felix Boehm <me@feedic.com>"
         ]
       }
     },
