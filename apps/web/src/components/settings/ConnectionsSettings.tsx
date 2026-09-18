@@ -130,12 +130,7 @@ import {
 } from "~/environments/primary";
 import { isDesktopLocalConnectionTarget } from "~/connection/desktopLocal";
 import { useUiStateStore } from "~/uiStateStore";
-import {
-  resolveServerConfigVersionMismatch,
-  resolveServerSelfUpdateCapability,
-  supportsDesktopAppUpdate,
-  supportsServerUpdateThreadContinuation,
-} from "~/versionSkew";
+import { resolveServerConfigVersionMismatch } from "~/versionSkew";
 import { hasCloudPublicConfig } from "~/cloud/publicConfig";
 import { useCloudLinkController } from "~/cloud/useCloudLinkController";
 import { authEnvironment } from "~/state/auth";
@@ -160,12 +155,6 @@ import { requestConfirmDialog } from "~/confirmDialog";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { primaryServerKeybindingsAtom, serverEnvironment } from "~/state/server";
 import { ConnectionStatusDot } from "../ConnectionStatusDot";
-import {
-  ServerUpdateAction,
-  ServerUpdateProgress,
-  ServerUpdatesAction,
-  type ServerUpdateTarget,
-} from "../ServerUpdateAction";
 import { CloudEnvironmentConnectRows } from "../cloud/CloudEnvironmentConnectList";
 import { ITEM_ROW_CLASSNAME, ITEM_ROW_INNER_CLASSNAME } from "./itemRows";
 import {
@@ -1503,9 +1492,6 @@ function SavedBackendListRow({
     [copyTraceIdToClipboard],
   );
   const versionMismatch = resolveServerConfigVersionMismatch(environment.serverConfig);
-  const serverUpdateState = useAtomValue(serverEnvironment.updateStateAtom(environmentId));
-  const resumingServerUpdate =
-    serverUpdateState.status === "running" && serverUpdateState.stage === "resuming";
   const status = savedBackendStatus(environment);
   const serverVersion = environment.serverConfig?.environment.serverVersion ?? null;
   // A saved T3 Connect machine this device has never reached (unsupported,
@@ -1527,19 +1513,11 @@ function SavedBackendListRow({
   );
   const subtitleText = [
     environmentTransportLabel(environment),
-    resumingServerUpdate ? "Restarting" : status.text,
+    status.text,
     enabled && versionMismatch ? serverVersion : null,
   ]
     .filter((value): value is string => value !== null)
     .join(" · ");
-
-  // Only a connected, enabled machine can take a remote update; a switched-off
-  // one keeps the version note so the icon is not a surprise later.
-  const showUpdateAction =
-    enabled &&
-    isConnected &&
-    versionMismatch !== null &&
-    (serverUpdateState.status === "idle" || serverUpdateState.status === "failed");
 
   return (
     <EnvironmentRow
@@ -1553,7 +1531,7 @@ function SavedBackendListRow({
               <span
                 className={cn(
                   "block truncate",
-                  enabled && status.tone === "error" && !resumingServerUpdate && "text-destructive",
+                  enabled && status.tone === "error" && "text-destructive",
                 )}
               />
             }
@@ -1567,31 +1545,12 @@ function SavedBackendListRow({
                 ? connectionStatusText(environment.connection)
                 : "Switched off"}
             {versionMismatch
-              ? `\nUpdate available: ${versionMismatch.serverVersion} → ${versionMismatch.clientVersion}`
+              ? `\nVersion differs: ${versionMismatch.serverVersion} → ${versionMismatch.clientVersion}`
               : ""}
           </TooltipPopup>
         </Tooltip>
       }
-      below={
-        serverUpdateState.status !== "idle" ? (
-          <div className="mt-1 max-w-md">
-            <ServerUpdateProgress state={serverUpdateState} />
-          </div>
-        ) : null
-      }
     >
-      {showUpdateAction ? (
-        <ServerUpdateAction
-          environmentId={environmentId}
-          serverLabel={`${environment.label} server`}
-          selfUpdate={resolveServerSelfUpdateCapability(environment.serverConfig)}
-          desktopAppUpdate={supportsDesktopAppUpdate(environment.serverConfig)}
-          threadContinuation={supportsServerUpdateThreadContinuation(environment.serverConfig)}
-          targetVersion={versionMismatch.clientVersion}
-          label={serverUpdateState.status === "failed" ? "Retry update" : "Update"}
-          appearance="icon"
-        />
-      ) : null}
       <Tooltip>
         <TooltipTrigger
           render={
@@ -1844,53 +1803,6 @@ export function ConnectionsSettings() {
       ),
     [savedEnvironments],
   );
-  // Machines "Update all" can reach: switched on, connected, behind the client
-  // version, remotely updatable, and not already mid-update. The button only
-  // renders when this list is non-empty.
-  const savedServerUpdateStatesAtom = useMemo(
-    () =>
-      Atom.make((get) =>
-        savedEnvironments.map((environment) => ({
-          environment,
-          updateStatus: get(serverEnvironment.updateStateAtom(environment.environmentId)).status,
-        })),
-      ),
-    [savedEnvironments],
-  );
-  const savedServerUpdateStates = useAtomValue(savedServerUpdateStatesAtom);
-  const savedServerUpdateTargets = useMemo(
-    () =>
-      savedServerUpdateStates.flatMap(({ environment, updateStatus }): ServerUpdateTarget[] => {
-        const mismatch = resolveServerConfigVersionMismatch(environment.serverConfig);
-        const selfUpdate = resolveServerSelfUpdateCapability(environment.serverConfig);
-        const desktopAppUpdate = supportsDesktopAppUpdate(environment.serverConfig);
-        if (
-          !mismatch ||
-          updateStatus === "running" ||
-          !environment.entry.enabled ||
-          environment.connection.phase !== "connected" ||
-          isDesktopLocalConnectionTarget(environment.entry.target) ||
-          // Manual-update machines only offer a copy command on their row.
-          selfUpdate === null ||
-          (selfUpdate === "desktop-managed" && !desktopAppUpdate)
-        ) {
-          return [];
-        }
-        return [
-          {
-            environmentId: environment.environmentId,
-            serverLabel: environment.label,
-            selfUpdate,
-            desktopAppUpdate,
-            threadContinuation: supportsServerUpdateThreadContinuation(environment.serverConfig),
-            continueThreadsAfterServerUpdate:
-              environment.serverConfig?.settings.continueThreadsAfterServerUpdate ?? false,
-            targetVersion: mismatch.clientVersion,
-          },
-        ];
-      }),
-    [savedServerUpdateStates],
-  );
   // Switched-off machines never receive threads, so they stay out of the
   // load balancing and GitHub sharing lists. This machine leads the list.
   const loadBalancingEnvironments = useMemo(
@@ -1965,9 +1877,6 @@ export function ConnectionsSettings() {
   >(null);
   const primaryServerConfig = primaryEnvironment?.serverConfig ?? null;
   const primaryVersionMismatch = resolveServerConfigVersionMismatch(primaryServerConfig);
-  const primaryServerUpdateState = useAtomValue(
-    serverEnvironment.updateStateAtom(primaryEnvironmentId),
-  );
   const [isAdvertisedEndpointListExpanded, setIsAdvertisedEndpointListExpanded] = useState(false);
   const defaultAdvertisedEndpointKey = useUiStateStore(
     (state) => state.defaultAdvertisedEndpointKey,
@@ -2955,40 +2864,19 @@ export function ConnectionsSettings() {
               <SettingsRow
                 title="Version"
                 description={
-                  primaryServerUpdateState.status !== "idle" ? (
-                    <ServerUpdateProgress state={primaryServerUpdateState} />
-                  ) : (
-                    [
-                      primaryServerConfig?.environment.serverVersion ?? null,
-                      primaryEnvironment?.displayUrl ?? null,
-                    ]
-                      .filter((value): value is string => value !== null)
-                      .join(" · ") || "Loading…"
-                  )
+                  [
+                    primaryServerConfig?.environment.serverVersion ?? null,
+                    primaryEnvironment?.displayUrl ?? null,
+                  ]
+                    .filter((value): value is string => value !== null)
+                    .join(" · ") || "Loading…"
                 }
                 control={
-                  primaryVersionMismatch &&
-                  primaryEnvironmentId !== null &&
-                  primaryServerUpdateState.status !== "running" ? (
-                    <ServerUpdateAction
-                      size="sm"
-                      environmentId={primaryEnvironmentId}
-                      serverLabel={
-                        primaryEnvironment ? `${primaryEnvironment.label} server` : "server"
-                      }
-                      selfUpdate={resolveServerSelfUpdateCapability(primaryServerConfig)}
-                      desktopAppUpdate={supportsDesktopAppUpdate(primaryServerConfig)}
-                      threadContinuation={supportsServerUpdateThreadContinuation(
-                        primaryServerConfig,
-                      )}
-                      targetVersion={primaryVersionMismatch.clientVersion}
-                      label={
-                        primaryServerUpdateState.status === "failed"
-                          ? "Retry update"
-                          : `Update to ${primaryVersionMismatch.clientVersion}`
-                      }
-                    />
-                  ) : primaryServerUpdateState.status === "idle" && primaryServerConfig ? (
+                  primaryVersionMismatch ? (
+                    <span className="text-xs text-muted-foreground">
+                      Client {primaryVersionMismatch.clientVersion}
+                    </span>
+                  ) : primaryServerConfig ? (
                     <span className="text-xs text-muted-foreground">Up to date</span>
                   ) : undefined
                 }
@@ -3222,13 +3110,6 @@ export function ConnectionsSettings() {
         title="Environments"
         headerAction={
           <div className="flex items-center gap-1">
-            {savedServerUpdateTargets.length > 0 ? (
-              <ServerUpdatesAction
-                targets={savedServerUpdateTargets}
-                variant="ghost"
-                className="font-normal text-muted-foreground/60 hover:text-muted-foreground"
-              />
-            ) : null}
             <Dialog
               open={addBackendDialogOpen}
               onOpenChange={(open) => {

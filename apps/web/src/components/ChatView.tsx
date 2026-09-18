@@ -506,23 +506,11 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
-import { ServerUpdateAction } from "./ServerUpdateAction";
-import { useAutoBalanceUpdateBanner } from "./chat/useAutoBalanceUpdateBanner";
-import {
-  ComposerServerUpdateIcon,
-  ComposerServerUpdateStatus,
-} from "./chat/ComposerServerUpdateStatus";
 import {
   buildVersionMismatchDismissalKey,
-  dismissServerUpdateFailure,
   dismissVersionMismatch,
-  isServerUpdateFailureDismissed,
   isVersionMismatchDismissed,
   resolveServerConfigVersionMismatch,
-  resolveServerSelfUpdateCapability,
-  serverUpdateGuidance,
-  supportsDesktopAppUpdate,
-  supportsServerUpdateThreadContinuation,
 } from "../versionSkew";
 import { useAssetUrls } from "../assets/assetUrls";
 import {
@@ -2624,17 +2612,6 @@ export default function ChatView(props: ChatViewProps) {
     (!draftThread?.branch || draftThread.environmentSelection === "auto") &&
     !draftThread?.worktreePath,
   );
-  const autoUpdateEnvironments = useMemo(
-    () =>
-      automaticEnvironment
-        ? logicalProjectEnvironments.flatMap(({ environmentId }) => {
-            const environment = environmentById.get(environmentId);
-            return environment ? [environment] : [];
-          })
-        : [],
-    [automaticEnvironment, logicalProjectEnvironments, environmentById],
-  );
-  const autoBalanceUpdateBanner = useAutoBalanceUpdateBanner(autoUpdateEnvironments);
   const versionMismatch = resolveServerConfigVersionMismatch(serverConfig);
   const versionMismatchDismissKey =
     versionMismatch && activeThread
@@ -2654,21 +2631,8 @@ export default function ChatView(props: ChatViewProps) {
       ? `${environmentById.get(activeThread.environmentId)?.label ?? serverConfig?.environment.label ?? activeThread.environmentId} server`
       : "server";
   const serverUpdateEnvironmentId = activeThread?.environmentId ?? null;
-  const versionMismatchSelfUpdate = resolveServerSelfUpdateCapability(serverConfig);
-  const versionMismatchDesktopAppUpdate = supportsDesktopAppUpdate(serverConfig);
-  const versionMismatchThreadContinuation = supportsServerUpdateThreadContinuation(serverConfig);
-  const serverUpdateState = useAtomValue(
-    serverEnvironment.updateStateAtom(serverUpdateEnvironmentId),
-  );
-  const [dismissedServerUpdateState, setDismissedServerUpdateState] = useState<
-    typeof serverUpdateState | null
-  >(null);
-  const serverUpdateFailureDismissed =
-    serverUpdateState === dismissedServerUpdateState ||
-    isServerUpdateFailureDismissed(serverUpdateState);
   const systemComposerBannerItems = useMemo<ComposerBannerStackItem[]>(() => {
     const items: ComposerBannerStackItem[] = [];
-    const updateRunning = serverUpdateState.status === "running";
     const unavailableConnection = activeEnvironmentUnavailableState?.connection ?? null;
     const disconnectAction =
       canDisconnectActiveEnvironment && activeEnvironmentUnavailableState ? (
@@ -2688,20 +2652,12 @@ export default function ChatView(props: ChatViewProps) {
       unavailableConnection !== null &&
       (unavailableConnection.phase === "connecting" ||
         unavailableConnection.phase === "reconnecting");
-    // Reconnecting to a version-skewed server with no update in flight
-    // usually means the server is restarting mid-update and a refresh wiped
-    // the in-memory update state. Fold the reconnect and version banners
-    // into one calm line instead of stacking "Failed to connect" on
-    // "versions differ". A failed update never folds: its error and retry
-    // action must stay visible.
-    const reconnectingThroughVersionSkew =
-      serverUpdateState.status === "idle" && environmentReconnecting && versionMismatch !== null;
-    // While an update runs, transient connect blips are expected (the server
-    // restarts) and the update banner already shows progress. Hard failure
-    // phases still surface so the Reconnect action stays reachable.
+    // Reconnecting to a version-skewed server usually means the server is
+    // restarting. Fold the reconnect and version banners into one calm line
+    // instead of stacking "Failed to connect" on "versions differ".
+    const reconnectingThroughVersionSkew = environmentReconnecting && versionMismatch !== null;
     const suppressUnavailableBanner =
-      environmentReconnecting &&
-      (updateRunning || (!reconnectingThroughVersionSkew && !reconnectWarningGraceElapsed));
+      environmentReconnecting && !reconnectingThroughVersionSkew && !reconnectWarningGraceElapsed;
     if (activeEnvironmentUnavailableState && unavailableConnection && !suppressUnavailableBanner) {
       if (reconnectingThroughVersionSkew) {
         items.push({
@@ -2750,87 +2706,47 @@ export default function ChatView(props: ChatViewProps) {
       !automaticEnvironment &&
       serverUpdateEnvironmentId &&
       !reconnectingThroughVersionSkew &&
-      (serverUpdateState.status === "idle"
-        ? showVersionMismatchBanner
-        : !serverUpdateFailureDismissed)
+      showVersionMismatchBanner
     ) {
-      const updateInProgress = serverUpdateState.status === "running";
-      const updateFailed = serverUpdateState.status === "failed";
       items.push({
         id: `server-version:${serverUpdateEnvironmentId}`,
-        variant: updateFailed ? "error" : "default",
-        // Prioritize update progress over passive notices, but keep activity attached.
-        priority: updateInProgress ? "urgent" : "notice",
-        icon: <ComposerServerUpdateIcon status={serverUpdateState.status} />,
-        title:
-          updateInProgress || updateFailed ? (
-            <ComposerServerUpdateStatus
-              state={serverUpdateState}
-              serverLabel={versionMismatchServerLabel}
+        variant: "default",
+        priority: "notice",
+        icon: <DownloadIcon aria-hidden />,
+        title: versionMismatch ? (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  className="block max-w-full cursor-help truncate rounded-sm text-left"
+                >
+                  Server version differs
+                </button>
+              }
             />
-          ) : versionMismatch ? (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <button
-                    type="button"
-                    className="block max-w-full cursor-help truncate rounded-sm text-left"
-                  >
-                    Server update available
-                  </button>
-                }
-              />
-              <TooltipPopup side="top">
-                {versionMismatchServerLabel} {versionMismatch.serverVersion}{" "}
-                <span aria-hidden="true">→</span> {versionMismatch.clientVersion}
-              </TooltipPopup>
-            </Tooltip>
-          ) : (
-            "Server update available"
-          ),
-        description:
-          !updateInProgress &&
-          !updateFailed &&
-          versionMismatchSelfUpdate !== null &&
-          (versionMismatchSelfUpdate !== "desktop-managed" || !versionMismatchDesktopAppUpdate)
-            ? serverUpdateGuidance(versionMismatchSelfUpdate)
-            : undefined,
-        actions: updateInProgress ? (
-          disconnectAction
-        ) : !versionMismatch ||
-          (versionMismatchSelfUpdate === "desktop-managed" &&
-            !versionMismatchDesktopAppUpdate) ? undefined : (
-          <ServerUpdateAction
-            environmentId={serverUpdateEnvironmentId}
-            serverLabel={versionMismatchServerLabel}
-            selfUpdate={versionMismatchSelfUpdate}
-            desktopAppUpdate={versionMismatchDesktopAppUpdate}
-            threadContinuation={versionMismatchThreadContinuation}
-            targetVersion={versionMismatch.clientVersion}
-            label={updateFailed ? "Retry" : "Update"}
-            variant="ghost"
-          />
+            <TooltipPopup side="top">
+              {versionMismatchServerLabel} {versionMismatch.serverVersion}{" "}
+              <span aria-hidden="true">→</span> {versionMismatch.clientVersion}
+            </TooltipPopup>
+          </Tooltip>
+        ) : (
+          "Server version differs"
         ),
-        ...(updateInProgress || (!updateFailed && !versionMismatchDismissKey)
-          ? {}
-          : {
-              dismissLabel: "Dismiss update notice",
+        ...(versionMismatchDismissKey
+          ? {
+              dismissLabel: "Dismiss version notice",
               onDismiss: () => {
-                if (updateFailed) {
-                  dismissServerUpdateFailure(serverUpdateState);
-                  setDismissedServerUpdateState(serverUpdateState);
-                }
                 dismissVersionMismatch(versionMismatchDismissKey);
                 setDismissedVersionMismatchKey(versionMismatchDismissKey);
               },
-            }),
+            }
+          : {}),
       });
     }
-    if (autoBalanceUpdateBanner) items.push(autoBalanceUpdateBanner);
     return items;
   }, [
     automaticEnvironment,
-    autoBalanceUpdateBanner,
     activeEnvironmentUnavailableState,
     reconnectWarningGraceElapsed,
     handleReconnectActiveEnvironment,
@@ -2839,14 +2755,9 @@ export default function ChatView(props: ChatViewProps) {
     handleDisconnectActiveEnvironment,
     setDismissedVersionMismatchKey,
     showVersionMismatchBanner,
-    serverUpdateFailureDismissed,
-    serverUpdateState,
     versionMismatch,
     versionMismatchDismissKey,
     serverUpdateEnvironmentId,
-    versionMismatchSelfUpdate,
-    versionMismatchDesktopAppUpdate,
-    versionMismatchThreadContinuation,
     versionMismatchServerLabel,
   ]);
   const providerInstanceEntries = useMemo(

@@ -147,7 +147,6 @@ import { ProviderAdapterRequestError } from "./provider/Errors.ts";
 import { makeManualOnlyProviderMaintenanceCapabilities } from "./provider/providerMaintenance.ts";
 import * as ServerLifecycleEvents from "./serverLifecycleEvents.ts";
 import * as ServerRuntimeStartup from "./serverRuntimeStartup.ts";
-import * as ServiceLauncherClient from "./cloud/serviceLauncherClient.ts";
 import * as ServerSettings from "./serverSettings.ts";
 import * as TerminalManager from "./terminal/Manager.ts";
 import * as ProjectCloneTracker from "./project/ProjectCloneTracker.ts";
@@ -750,18 +749,11 @@ const buildAppUnderTest = (options?: {
         ),
       ),
     );
-    const serviceLauncherClientLayer = ServiceLauncherClient.layer.pipe(
-      Layer.provide(Layer.succeed(HostProcessEnvironment, {})),
-    );
-
-    const servedRoutesLayer = HttpRouter.serve(
-      makeRoutesLayer.pipe(Layer.provide(serviceLauncherClientLayer)),
-      {
-        disableListenLog: true,
-        disableLogger: true,
-        routerConfig: HTTP_ROUTER_CONFIG,
-      },
-    ).pipe(
+    const servedRoutesLayer = HttpRouter.serve(makeRoutesLayer, {
+      disableListenLog: true,
+      disableLogger: true,
+      routerConfig: HTTP_ROUTER_CONFIG,
+    }).pipe(
       Layer.provide(
         Layer.mergeAll(
           Layer.mock(Keybindings.Keybindings)({

@@ -47,7 +47,6 @@ import * as ProviderService from "./provider/Services/ProviderService.ts";
 import * as ProviderSessionDirectory from "./provider/Services/ProviderSessionDirectory.ts";
 import * as ProviderSessionReaper from "./provider/Services/ProviderSessionReaper.ts";
 import { forkParked } from "./serverActivation.ts";
-import * as ServiceLauncherClient from "./cloud/serviceLauncherClient.ts";
 import * as GitVcsDriver from "./vcs/GitVcsDriver.ts";
 import {
   formatHeadlessServeOutput,
@@ -910,7 +909,6 @@ export const make = (options?: StartupOptions) =>
     const projectionSnapshotQuery = yield* ProjectionSnapshotQuery.ProjectionSnapshotQuery;
     const providerSessionDirectory = yield* ProviderSessionDirectory.ProviderSessionDirectory;
     const crypto = yield* Crypto.Crypto;
-    const launcher = yield* ServiceLauncherClient.ServiceLauncherClient;
 
     const commandGate = yield* makeCommandGate;
     const httpListening = yield* Deferred.make<void>();
@@ -1047,8 +1045,7 @@ export const make = (options?: StartupOptions) =>
       );
 
       // This is the prepared boundary. Every dependency has been acquired and
-      // every runtime root has confirmed that it is parked before this request.
-      const updateOutcome = yield* launcher.prepareTrial;
+      // every runtime root has confirmed that it is parked.
       yield* runStartupPhase(
         "welcome.publish",
         lifecycleEvents.publish({
@@ -1073,7 +1070,6 @@ export const make = (options?: StartupOptions) =>
           payload: {
             at: DateTime.formatIso(yield* DateTime.now),
             environment,
-            ...(updateOutcome === undefined ? {} : { updateOutcome }),
           },
         }),
       );

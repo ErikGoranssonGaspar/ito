@@ -59,8 +59,6 @@ import {
   ProviderSetupError,
   RelayClientInstallFailedError,
   type RelayClientInstallProgressEvent,
-  ServerSelfUpdateError,
-  type ServerSelfUpdateProgressEvent,
   type ServerLifecycleStreamEvent,
   type FilesystemBrowseFailure,
   FilesystemBrowseError,
@@ -114,7 +112,6 @@ import * as ProviderMaintenanceRunner from "./provider/providerMaintenanceRunner
 import { ProviderAuthService } from "./provider/Services/ProviderAuthService.ts";
 import { ProviderInstanceRegistry } from "./provider/Services/ProviderInstanceRegistry.ts";
 import { makeProviderInstallation } from "./provider/providerInstallation.ts";
-import * as ServerSelfUpdate from "./cloud/selfUpdate.ts";
 import * as ServerLifecycleEvents from "./serverLifecycleEvents.ts";
 import * as ServerRuntimeStartup from "./serverRuntimeStartup.ts";
 import * as ServerSettings from "./serverSettings.ts";
@@ -566,7 +563,6 @@ const makeWsRpcLayer = (
       const providerAuth = yield* ProviderAuthService;
       const providerInstances = yield* ProviderInstanceRegistry;
       const providerInstallation = yield* makeProviderInstallation();
-      const serverUpdate = yield* ServerSelfUpdate.ServerSelfUpdate;
       const config = yield* ServerConfig.ServerConfig;
       const lifecycleEvents = yield* ServerLifecycleEvents.ServerLifecycleEvents;
       const serverSettings = yield* ServerSettings.ServerSettingsService;
@@ -2467,37 +2463,6 @@ const makeWsRpcLayer = (
           observeRpcEffect(WS_METHODS.providerInstallRemove, providerInstallation.remove(input), {
             "rpc.aggregate": "provider",
           }),
-        [WS_METHODS.serverUpdateServer]: (input) =>
-          observeRpcEffect(WS_METHODS.serverUpdateServer, serverUpdate.update(input), {
-            "rpc.aggregate": "server",
-          }),
-        [WS_METHODS.serverUpdateServerWithProgress]: (input) =>
-          observeRpcStream(
-            WS_METHODS.serverUpdateServerWithProgress,
-            Stream.callback<ServerSelfUpdateProgressEvent, ServerSelfUpdateError>((queue) =>
-              serverUpdate
-                .update(input, (stage) =>
-                  Queue.offer(queue, {
-                    type: "progress",
-                    stage,
-                  }).pipe(Effect.asVoid),
-                )
-                .pipe(
-                  Effect.flatMap((result) =>
-                    Queue.offer(queue, {
-                      type: "complete",
-                      result,
-                    }),
-                  ),
-                  Effect.catchTags({
-                    ServerSelfUpdateError: (error) => Queue.fail(queue, error),
-                  }),
-                  Effect.andThen(Queue.end(queue)),
-                  Effect.forkScoped,
-                ),
-            ),
-            { "rpc.aggregate": "server" },
-          ),
         [WS_METHODS.serverUpsertKeybinding]: (rule) =>
           observeRpcEffect(
             WS_METHODS.serverUpsertKeybinding,
@@ -3673,32 +3638,6 @@ const makeWsRpcLayer = (
 export const websocketRpcRouteLayer = Layer.unwrap(
   Effect.gen(function* () {
     const previewAutomationBroker = yield* PreviewAutomationBroker.PreviewAutomationBroker;
-    const baseServerSelfUpdate = yield* ServerSelfUpdate.ServerSelfUpdate;
-    const config = yield* ServerConfig.ServerConfig;
-    const startup = yield* ServerRuntimeStartup.ServerRuntimeStartup;
-    const serverSelfUpdate = yield* ServerSelfUpdate.withRunningThreadContinuation({
-      mode: config.mode,
-      selfUpdate: baseServerSelfUpdate,
-      prepare: startup.markRunningProviderSessionsForContinuation.pipe(
-        Effect.mapError(
-          (cause) =>
-            new ServerSelfUpdateError({
-              reason: "Could not prepare running threads to continue after the update.",
-              cause,
-            }),
-        ),
-      ),
-      clear: (threadIds) =>
-        startup.clearProviderSessionContinuationMarkers(threadIds).pipe(
-          Effect.mapError(
-            (cause) =>
-              new ServerSelfUpdateError({
-                reason: "Could not clear thread continuation markers after the update failed.",
-                cause,
-              }),
-          ),
-        ),
-    });
     const pullRequests = yield* PullRequestService.PullRequestService;
     const sql = yield* SqlClient.SqlClient;
     return HttpRouter.add(
@@ -3744,7 +3683,6 @@ export const websocketRpcRouteLayer = Layer.unwrap(
               Layer.provide(Layer.succeed(SqlClient.SqlClient, sql)),
               Layer.provide(AgentSessionScanner.layer),
               Layer.provide(ProviderMaintenanceRunner.layer),
-              Layer.provide(Layer.succeed(ServerSelfUpdate.ServerSelfUpdate, serverSelfUpdate)),
               // One server-lifetime service means clients share the same PR caches, and a WS
               // mutation invalidates the HTTP diff cache that every client reads from.
               Layer.provide(Layer.succeed(PullRequestService.PullRequestService, pullRequests)),

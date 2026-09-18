@@ -121,7 +121,6 @@ import * as ServerSecretStore from "./auth/ServerSecretStore.ts";
 import * as EnvironmentAuth from "./auth/EnvironmentAuth.ts";
 import {
   connectHttpApiLayer,
-  pendingServiceUpdateExists,
   reconcileDesiredCloudLink,
   releaseManagedTunnelOnShutdown,
 } from "./cloud/http.ts";
@@ -130,8 +129,6 @@ import { shouldRetryCloudLink } from "./cloud/relayResponse.ts";
 import * as CloudManagedEndpointRuntime from "./cloud/ManagedEndpointRuntime.ts";
 import * as CloudCliTokenManager from "./cloud/CliTokenManager.ts";
 import * as CloudCliState from "./cloud/CliState.ts";
-import * as ServerSelfUpdate from "./cloud/selfUpdate.ts";
-import * as ServiceLauncherClient from "./cloud/serviceLauncherClient.ts";
 import * as ProcessDiagnostics from "./diagnostics/ProcessDiagnostics.ts";
 import * as HostResources from "./resourceTelemetry/HostResources.ts";
 import * as ProcessResourceMonitor from "./diagnostics/ProcessResourceMonitor.ts";
@@ -582,7 +579,6 @@ export const makeRoutesLayer = Layer.mergeAll(
   // and mutations observed on WebSocket invalidate patches subsequently read over HTTP.
   Layer.provide(PullRequestServiceLive),
   Layer.provide(PreviewAutomationBroker.layer),
-  Layer.provide(ServerSelfUpdate.layer),
   Layer.provide(commandReadinessLayer),
   Layer.provide(browserApiCorsLayer),
   Layer.provide(httpCompressionLayer),
@@ -598,7 +594,6 @@ const makeServerLayer = Layer.unwrap(
     const tailscaleParked = yield* Deferred.make<void>();
     const cloudLinkParked = yield* Deferred.make<void>();
     const routesReady = yield* Deferred.make<void>();
-    const launcherLayer = ServiceLauncherClient.layer;
 
     yield* fixPath();
 
@@ -620,11 +615,9 @@ const makeServerLayer = Layer.unwrap(
             return;
           }
 
-          const launcher = yield* ServiceLauncherClient.ServiceLauncherClient;
           const state = yield* makePersistedServerRuntimeState({
             config,
             port: address.port,
-            serviceManaged: launcher.managed,
           });
           yield* persistServerRuntimeState({
             path: config.serverRuntimeStatePath,
@@ -715,21 +708,9 @@ const makeServerLayer = Layer.unwrap(
           ),
           Effect.asVoid,
         );
-        // A launcher trial can be stopped before activation. The previous
-        // server is already gone, so the trial owns cleanup immediately; the
-        // pending-state check keeps the tunnel for normal commit or rollback,
-        // while the launcher's explicit-stop marker allows it to be released.
-        // Other runtimes wait for activation so a failed standby cannot tear
-        // down the active runtime's tunnel.
-        const cleanupBeforeActivation = yield* pendingServiceUpdateExists;
-        if (cleanupBeforeActivation) {
-          yield* Effect.addFinalizer(() => releaseManagedTunnel);
-        }
         yield* forkParked(
           Effect.gen(function* () {
-            if (!cleanupBeforeActivation) {
-              yield* Effect.addFinalizer(() => releaseManagedTunnel);
-            }
+            yield* Effect.addFinalizer(() => releaseManagedTunnel);
             if (!(yield* CloudCliState.readCliDesiredCloudLink)) return;
             const server = yield* HttpServer.HttpServer;
             const address = server.address;
@@ -775,16 +756,16 @@ const makeServerLayer = Layer.unwrap(
         ],
         { concurrency: "unbounded" },
       ).pipe(Effect.asVoid),
-    }).pipe(Layer.provideMerge(RuntimeDependenciesLive), Layer.provide(launcherLayer));
+    }).pipe(Layer.provideMerge(RuntimeDependenciesLive));
 
-    const routesLayer = HttpRouter.serve(makeRoutesLayer.pipe(Layer.provide(launcherLayer)), {
+    const routesLayer = HttpRouter.serve(makeRoutesLayer, {
       disableLogger: !config.logWebSocketEvents,
       routerConfig: HTTP_ROUTER_CONFIG,
     }).pipe(Layer.tap(() => Deferred.succeed(routesReady, undefined).pipe(Effect.orDie)));
     const serverApplicationLayer = Layer.mergeAll(
       routesLayer,
       httpListeningLayer,
-      runtimeStateLayer.pipe(Layer.provide(launcherLayer)),
+      runtimeStateLayer,
       tailscaleServeLayer,
       cloudDesiredLinkReconcileLayer,
     );
