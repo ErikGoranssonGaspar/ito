@@ -554,27 +554,17 @@ export const isPreviewRefreshShortcut = (input: Electron.Input): boolean =>
   !input.shift &&
   !input.alt;
 
-export const isPreviewEditingShortcut = (
-  input: Electron.Input,
-  platform: NodeJS.Platform,
-): boolean => {
-  const isMac = platform === "darwin";
-  if (isMac ? !input.meta || input.control : !input.control || input.meta) return false;
+export const isPreviewEditingShortcut = (input: Electron.Input): boolean => {
+  if (!input.meta || input.control) return false;
 
   const key = input.key.toLowerCase();
-  // Option changes the DOM key for macOS Paste and Match Style (for example, to ◊).
-  if (isMac && input.alt && input.shift && input.code === "KeyV") return true;
-  if (key === "v" && input.shift) return input.alt === isMac;
+  // Option changes the DOM key for Paste and Match Style (for example, to ◊).
+  if (input.alt && input.shift && input.code === "KeyV") return true;
+  if (key === "v" && input.shift) return input.alt;
   if (input.alt) return false;
-  if (key === "z") return !input.shift || platform !== "win32";
+  if (key === "z") return true;
   if (input.shift) return false;
-  return (
-    key === "a" ||
-    key === "c" ||
-    key === "v" ||
-    key === "x" ||
-    (key === "y" && platform === "win32")
-  );
+  return key === "a" || key === "c" || key === "v" || key === "x";
 };
 
 const isPreviewInputSignal = (value: unknown): value is PreviewInputSignal => {
@@ -1891,8 +1881,7 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
       // Native editing roles must remain available after the page handles the key.
       // Background automation must not edit whichever other renderer has focus.
       contents.setIgnoreMenuShortcuts(
-        !isPreviewEditingShortcut(input, hostPlatform) ||
-          webContents.getFocusedWebContents() !== contents,
+        !isPreviewEditingShortcut(input) || webContents.getFocusedWebContents() !== contents,
       );
     };
     // A popup opens with Electron's default handler, so the page inside it could

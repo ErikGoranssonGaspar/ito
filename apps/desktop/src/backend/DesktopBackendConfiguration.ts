@@ -86,16 +86,12 @@ const logBackendObservabilitySettingsReadFailure = (
   );
 };
 
-function resourceMonitorBinaryName(platform: NodeJS.Platform): string {
-  return platform === "win32" ? "t3-resource-monitor.exe" : "t3-resource-monitor";
-}
-
 const resolveResourceMonitorPath = Effect.fn(
   "desktop.backendConfiguration.resolveResourceMonitorPath",
 )(function* () {
   const environment = yield* DesktopEnvironment.DesktopEnvironment;
   const fileSystem = yield* FileSystem.FileSystem;
-  const binaryName = resourceMonitorBinaryName(environment.platform);
+  const binaryName = "t3-resource-monitor";
   const candidates = environment.isDevelopment
     ? [
         environment.path.join(

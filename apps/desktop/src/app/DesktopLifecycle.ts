@@ -253,7 +253,7 @@ export const make = DesktopLifecycle.of({
       );
     });
 
-    if (environment.platform !== "win32") {
+    {
       yield* addScopedListener(process, "SIGINT", () => {
         quitFromSignal("SIGINT", runEffect);
       });

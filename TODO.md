@@ -42,13 +42,18 @@ This tracks the reduction of the T3 Code fork. The longer-term product direction
 - [x] Prune the dependencies the cuts made dead: Clerk (the T3 account sign-in), jose and
       @noble/curves (relay JWT and DPoP), dbus-next and its patch, electron-store, and the
       unused @effect/platform-node-shared direct dependency.
+- [x] Remove the Windows and Linux branches from the Electron shell: the PowerShell
+      environment probe, the Linux D-Bus and XDG session plumbing, the Windows taskbar
+      overlay and app-user-model id, the AppImage and desktop-entry identity, and the
+      per-platform window icon and editing chords.
 - [x] Preserve this checkout's `.t3` data and settings.
 
 ## Next cleanup passes
 
-- [ ] Remove the remaining Windows and Linux branches from the server and renderer —
-      about 110 `process.platform` checks across provider, terminal, telemetry and
-      shell code. Each is a small judgment call, so this wants its own careful pass.
+- [ ] Remove the remaining Windows and Linux branches from the server and renderer.
+      Care needed: an SSH environment runs a remote t3 server that may well be Linux,
+      so a `"linux"` branch is only dead when it is about *this* host. Check each one
+      against `packages/ssh` before cutting it.
 - [ ] Prune the license overrides, tests, and documentation made obsolete by the cuts.
 - [ ] After each substantial cut, run focused checks and verify the macOS desktop app still starts.
 - [ ] Once the cleanup is finished, review `AGENTS.md` and the related agent setup files in `.agents` with the owner. Keep useful instructions and skills, and remove or update T3-era assumptions for ito.

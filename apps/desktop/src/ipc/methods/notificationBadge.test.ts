@@ -1,7 +1,6 @@
 import * as Effect from "effect/Effect";
 import { beforeEach, expect, vi } from "vite-plus/test";
 import { it } from "@effect/vitest";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
 
 const native = vi.hoisted(() => ({
   setBadgeCount: vi.fn(),
@@ -42,49 +41,25 @@ beforeEach(() => {
   native.listeners.clear();
 });
 
-it.each(["darwin", "linux"] as const)("sets and clears the native %s count", (platform) => {
-  applyNotificationBadge(platform, badge);
-  applyNotificationBadge(platform, { count: 0, image: null });
+it("sets and clears the dock badge count", () => {
+  applyNotificationBadge(badge);
+  applyNotificationBadge({ count: 0, image: null });
   expect(native.setBadgeCount.mock.calls).toEqual([[2], [0]]);
   expect(native.createFromDataURL).not.toHaveBeenCalled();
 });
 
-it("sets and clears the Windows taskbar overlay", () => {
-  applyNotificationBadge("win32", badge);
-  expect(native.setOverlayIcon).toHaveBeenLastCalledWith(
-    native.image,
-    "2 threads with new notifications",
-  );
-  applyNotificationBadge("win32", { count: 0, image: null });
-  expect(native.setOverlayIcon).toHaveBeenLastCalledWith(null, "");
-});
-
-it.each(["win32", "darwin", "linux"] as const)(
-  "rejects a late positive count while %s is focused",
-  (platform) => {
-    native.getFocusedWindow.mockReturnValue({});
-    applyNotificationBadge(platform, badge);
-    if (platform === "win32") expect(native.setOverlayIcon).toHaveBeenCalledWith(null, "");
-    else expect(native.setBadgeCount).toHaveBeenCalledWith(0);
-    expect(native.createFromDataURL).not.toHaveBeenCalled();
-  },
-);
-
-it("ignores destroyed windows and clears invalid images", () => {
-  native.isDestroyed.mockReturnValue(true);
-  applyNotificationBadge("win32", badge);
-  expect(native.setOverlayIcon).not.toHaveBeenCalled();
-  native.isDestroyed.mockReturnValue(false);
-  native.image.isEmpty.mockReturnValue(true);
-  applyNotificationBadge("win32", badge);
-  expect(native.setOverlayIcon.mock.calls[0]?.[0]).toBeNull();
+it("rejects a late positive count while a window is focused", () => {
+  native.getFocusedWindow.mockReturnValue({});
+  applyNotificationBadge(badge);
+  expect(native.setBadgeCount).toHaveBeenCalledWith(0);
+  expect(native.createFromDataURL).not.toHaveBeenCalled();
 });
 
 it("keeps notifications working when the native badge API fails", () => {
   native.setBadgeCount.mockImplementation(() => {
     throw new Error("Unavailable");
   });
-  expect(() => applyNotificationBadge("linux", badge)).not.toThrow();
+  expect(() => applyNotificationBadge(badge)).not.toThrow();
 });
 
 it.effect("validates IPC and clears on native focus, quit, and disposal", () =>
@@ -122,7 +97,6 @@ it.effect("validates IPC and clears on native focus, quit, and disposal", () =>
         expect(native.setBadgeCount).toHaveBeenLastCalledWith(0);
       }),
     ).pipe(
-      Effect.provideService(HostProcessPlatform, "linux"),
       Effect.provide([
         ElectronApp.layer,
         DesktopIpc.layer({

@@ -69,65 +69,53 @@ describe("isPreviewRefreshShortcut", () => {
 });
 
 describe("isPreviewEditingShortcut", () => {
-  const input = (platform: NodeJS.Platform, key: string, overrides: Partial<Electron.Input> = {}) =>
+  const input = (key: string, overrides: Partial<Electron.Input> = {}) =>
     ({
       type: "keyDown",
       key,
-      meta: platform === "darwin",
-      control: platform !== "darwin",
+      meta: true,
+      control: false,
       shift: false,
       alt: false,
       ...overrides,
     }) as Electron.Input;
 
-  it.each(["darwin", "linux", "win32"] as const)(
-    "allows native editing chords on %s without allowing host shortcuts",
-    (platform) => {
-      for (const key of ["a", "c", "v", "x", "z", "V"]) {
-        expect(PreviewManager.isPreviewEditingShortcut(input(platform, key), platform)).toBe(true);
-      }
-      const redo =
-        platform === "win32" ? input(platform, "y") : input(platform, "z", { shift: true });
-      expect(PreviewManager.isPreviewEditingShortcut(redo, platform)).toBe(true);
-      expect(
-        PreviewManager.isPreviewEditingShortcut(
-          input(platform, "v", { shift: true, alt: platform === "darwin" }),
-          platform,
-        ),
-      ).toBe(true);
+  it("allows native editing chords without allowing host shortcuts", () => {
+    for (const key of ["a", "c", "v", "x", "z", "V"]) {
+      expect(PreviewManager.isPreviewEditingShortcut(input(key))).toBe(true);
+    }
+    expect(PreviewManager.isPreviewEditingShortcut(input("z", { shift: true }))).toBe(true);
+    expect(PreviewManager.isPreviewEditingShortcut(input("v", { shift: true, alt: true }))).toBe(
+      true,
+    );
 
-      for (const key of ["k", ",", "w", "j", "q", "+", "=", "-", "0", "r", "F12"]) {
-        expect(PreviewManager.isPreviewEditingShortcut(input(platform, key), platform)).toBe(false);
-      }
-      for (const modifiers of [
-        { meta: false, control: false },
-        { meta: true, control: true },
-        { meta: platform !== "darwin", control: platform === "darwin" },
-        { alt: true },
-        { shift: true, alt: platform !== "darwin" },
-      ]) {
-        expect(
-          PreviewManager.isPreviewEditingShortcut(input(platform, "v", modifiers), platform),
-        ).toBe(false);
-      }
-      expect(
-        PreviewManager.isPreviewEditingShortcut(input(platform, "a", { shift: true }), platform),
-      ).toBe(false);
-    },
-  );
+    for (const key of ["k", ",", "w", "j", "q", "+", "=", "-", "0", "r", "F12"]) {
+      expect(PreviewManager.isPreviewEditingShortcut(input(key))).toBe(false);
+    }
+    for (const modifiers of [
+      { meta: false, control: false },
+      { meta: true, control: true },
+      { meta: false, control: true },
+      { alt: true },
+      { shift: true, alt: false },
+    ]) {
+      expect(PreviewManager.isPreviewEditingShortcut(input("v", modifiers))).toBe(false);
+    }
+    expect(PreviewManager.isPreviewEditingShortcut(input("a", { shift: true }))).toBe(false);
+  });
 
-  it("recognizes macOS Paste and Match Style when Option changes the key to a symbol", () => {
-    const pasteAndMatchStyle = input("darwin", "◊", { code: "KeyV", alt: true, shift: true });
-    expect(PreviewManager.isPreviewEditingShortcut(pasteAndMatchStyle, "darwin")).toBe(true);
+  it("recognizes Paste and Match Style when Option changes the key to a symbol", () => {
+    const pasteAndMatchStyle = input("◊", { code: "KeyV", alt: true, shift: true });
+    expect(PreviewManager.isPreviewEditingShortcut(pasteAndMatchStyle)).toBe(true);
     for (const modifiers of [
       { code: "KeyC" },
       { alt: false },
       { shift: false },
       { control: true },
     ]) {
-      expect(
-        PreviewManager.isPreviewEditingShortcut({ ...pasteAndMatchStyle, ...modifiers }, "darwin"),
-      ).toBe(false);
+      expect(PreviewManager.isPreviewEditingShortcut({ ...pasteAndMatchStyle, ...modifiers })).toBe(
+        false,
+      );
     }
   });
 });

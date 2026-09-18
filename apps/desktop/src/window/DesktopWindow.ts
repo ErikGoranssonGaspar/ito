@@ -10,7 +10,6 @@ import * as Electron from "electron";
 
 import { type DesktopSnapShotEvent, DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts";
 
-import * as DesktopAssets from "../app/DesktopAssets.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import { makeComponentLogger } from "../app/DesktopObservability.ts";
 import * as ElectronMenu from "../electron/ElectronMenu.ts";
@@ -75,7 +74,6 @@ type WindowTitleBarOptions = Pick<
 
 type DesktopWindowRuntimeServices =
   | DesktopEnvironment.DesktopEnvironment
-  | DesktopAssets.DesktopAssets
   | DesktopAppSettings.DesktopAppSettings
   | DesktopClientSettings.DesktopClientSettings
   | ElectronApp.ElectronApp
@@ -135,18 +133,6 @@ export class DesktopWindow extends Context.Service<
 
 const { logInfo: logWindowInfo, logWarning: logWindowWarning } =
   makeComponentLogger("desktop-window");
-
-function getIconOption(
-  iconPaths: DesktopAssets.DesktopIconPaths,
-  platform: NodeJS.Platform,
-): { icon: string } | Record<string, never> {
-  if (platform === "darwin") return {}; // macOS uses .icns from app bundle
-  const ext = platform === "win32" ? "ico" : "png";
-  return Option.match(iconPaths[ext], {
-    onNone: () => ({}),
-    onSome: (icon) => ({ icon }),
-  });
-}
 
 function getInitialWindowBackgroundColor(shouldUseDarkColors: boolean): string {
   return shouldUseDarkColors ? "#0a0a0a" : "#ffffff";
@@ -295,7 +281,6 @@ function bindFirstRevealTrigger(
 /** @public Service construction is part of the canonical Effect module API. */
 export const make = Effect.gen(function* () {
   const environment = yield* DesktopEnvironment.DesktopEnvironment;
-  const assets = yield* DesktopAssets.DesktopAssets;
   const electronMenu = yield* ElectronMenu.ElectronMenu;
   const electronShell = yield* ElectronShell.ElectronShell;
   const electronTheme = yield* ElectronTheme.ElectronTheme;
@@ -324,8 +309,6 @@ export const make = Effect.gen(function* () {
   > {
     yield* previewManager.getBrowserSession();
     const applicationUrl = getDesktopUrl(environment.isDevelopment);
-    const iconPaths = yield* assets.iconPaths;
-    const iconOption = getIconOption(iconPaths, environment.platform);
     const shouldUseDarkColors = yield* electronTheme.shouldUseDarkColors;
     const persistedSettings = yield* desktopSettings.get;
     const persistedBounds = persistedSettings.mainWindowBounds;
@@ -358,7 +341,6 @@ export const make = Effect.gen(function* () {
       autoHideMenuBar: true,
       ...(environment.platform === "darwin" ? { disableAutoHideCursor: true } : {}),
       backgroundColor: getInitialWindowBackgroundColor(shouldUseDarkColors),
-      ...iconOption,
       title: environment.displayName,
       ...getWindowTitleBarOptions(shouldUseDarkColors, environment.platform),
       webPreferences: {
@@ -764,9 +746,6 @@ export const make = Effect.gen(function* () {
     });
 
     const revealSubscribers: RevealSubscription[] = [(fire) => window.once("ready-to-show", fire)];
-    if (environment.platform === "linux") {
-      revealSubscribers.push((fire) => window.webContents.once("did-finish-load", fire));
-    }
     bindFirstRevealTrigger(revealSubscribers, () => {
       // Boot is done; hand the window back to normal hidden-window throttling
       // (see the backgroundThrottling comment on the create options above).
