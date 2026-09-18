@@ -418,7 +418,10 @@ export function upgradeLegacyContextMessage(text: string): UpgradedLegacyContext
     let at = body.indexOf(label);
     while (
       at !== -1 &&
-      (/[\p{L}\p{N}\p{M}_@.-]$/u.test(body.slice(0, at)) ||
+      // `\p{L}` is hoisted out of the character class deliberately: an anchored
+      // class does not match a surrogate pair, so `[\p{L}]$` reads an astral
+      // letter as a non-letter and the label gets replaced mid-word.
+      (/(?:\p{L}|[\p{N}\p{M}_@.-])$/u.test(body.slice(0, at)) ||
         /^(?:[\p{L}\p{N}\p{M}_-]|[.@]+[\p{L}\p{N}\p{M}_-])/u.test(body.slice(at + label.length)))
     ) {
       at = body.indexOf(label, at + 1);

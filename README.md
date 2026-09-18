@@ -65,14 +65,9 @@ Things that are deliberately unfinished, roughly in the order they are worth doi
   checks. These need case-by-case judgement rather than a sweep: an SSH environment runs a
   server on a remote host that may not be a Mac, so a `"linux"` branch is only dead when it
   is about _this_ host. Check each against `packages/ssh` before cutting it.
-- **One test fails**, and it is a real bug: `composerContextLegacy` mis-handles an
-  astral-plane character immediately before an `@mention`, because `/[\p{L}...]$/u` does
-  not match a surrogate pair where the equivalent `/(?:\p{L}|[...])$/u` does. It only
-  affects upgrading messages from older clients.
 - **`GitVcsDriverCore` looks flaky.** It failed once under full-suite load and passes in
   isolation.
 - **There is no CI.** No workflows exist, so nothing runs the checks automatically.
-- **`AGENTS.md` and `.agents` still carry T3-era assumptions** and want a review.
 
 Node 24 is expected (`package.json` engines); this checkout has been developed on Node 26
 without trouble, but that is untested ground.

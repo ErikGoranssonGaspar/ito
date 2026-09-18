@@ -1,22 +1,22 @@
 #!/usr/bin/env node
 // @effect-diagnostics nodeBuiltinImport:off globalConsole:off -- This small bootstrap runs before the desktop Effect runtime exists.
 
-import { spawn } from "node:child_process";
-import { createHash } from "node:crypto";
-import { existsSync, statSync } from "node:fs";
-import { createServer } from "node:net";
-import { resolve } from "node:path";
+import * as NodeChildProcess from "node:child_process";
+import * as NodeCrypto from "node:crypto";
+import * as NodeFS from "node:fs";
+import * as NodeNet from "node:net";
+import * as NodePath from "node:path";
 
 import { loadRepoEnv } from "./lib/public-config.ts";
 
 Object.assign(process.env, loadRepoEnv());
 
 const root = process.cwd();
-const stateDir = resolve(root, ".t3");
-const gitEntry = resolve(root, ".git");
-const isLinkedWorktree = existsSync(gitEntry) && statSync(gitEntry).isFile();
+const stateDir = NodePath.resolve(root, ".t3");
+const gitEntry = NodePath.resolve(root, ".git");
+const isLinkedWorktree = NodeFS.existsSync(gitEntry) && NodeFS.statSync(gitEntry).isFile();
 const defaultOffset = isLinkedWorktree
-  ? (createHash("sha256").update(root).digest().readUInt32BE(0) % 3000) + 1
+  ? (NodeCrypto.createHash("sha256").update(root).digest().readUInt32BE(0) % 3000) + 1
   : 0;
 const configuredOffset = process.env.T3CODE_PORT_OFFSET;
 const startOffset = configuredOffset === undefined ? defaultOffset : Number(configuredOffset);
@@ -30,7 +30,7 @@ const blockedWebPorts = new Set([6000, 6566, 6665, 6666, 6667, 6668, 6669, 6679,
 
 const canListen = (port: number): Promise<boolean> =>
   new Promise((done) => {
-    const server = createServer();
+    const server = NodeNet.createServer();
     server.once("error", () => done(false));
     server.listen(port, "127.0.0.1", () => server.close(() => done(true)));
   });
@@ -81,7 +81,7 @@ console.info(
   `[dev-runner] desktop serverPort=${ports.server} webPort=${ports.web} baseDir=${stateDir}`,
 );
 
-const child = spawn("vp", ["run", "--filter=@t3tools/desktop", "--filter=@t3tools/web", "dev"], {
+const child = NodeChildProcess.spawn("vp", ["run", "--filter=@t3tools/desktop", "--filter=@t3tools/web", "dev"], {
   cwd: root,
   env,
   stdio: "inherit",
