@@ -39,6 +39,9 @@ This tracks the reduction of the T3 Code fork. The longer-term product direction
 - [x] Collapse the renderer's hosted-static-app mode. `isHostedStaticApp()` is gone and
       the `hosted-static` auth-gate state is renamed `no-local-backend`, which is the only
       way it was ever reachable here.
+- [x] Prune the dependencies the cuts made dead: Clerk (the T3 account sign-in), jose and
+      @noble/curves (relay JWT and DPoP), dbus-next and its patch, electron-store, and the
+      unused @effect/platform-node-shared direct dependency.
 - [x] Preserve this checkout's `.t3` data and settings.
 
 ## Next cleanup passes
@@ -46,7 +49,7 @@ This tracks the reduction of the T3 Code fork. The longer-term product direction
 - [ ] Remove the remaining Windows and Linux branches from the server and renderer —
       about 110 `process.platform` checks across provider, terminal, telemetry and
       shell code. Each is a small judgment call, so this wants its own careful pass.
-- [ ] Prune dependencies, license overrides, tests, and documentation made obsolete by those cuts.
+- [ ] Prune the license overrides, tests, and documentation made obsolete by the cuts.
 - [ ] After each substantial cut, run focused checks and verify the macOS desktop app still starts.
 - [ ] Once the cleanup is finished, review `AGENTS.md` and the related agent setup files in `.agents` with the owner. Keep useful instructions and skills, and remove or update T3-era assumptions for ito.
 
