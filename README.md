@@ -22,6 +22,14 @@ pnpm build
 pnpm exec vp run --filter @t3tools/desktop --filter @t3tools/web --filter t3 typecheck
 ```
 
+## Documentation
+
+The notes in `docs/internals` and `docs/operations` describe the code as it stands.
+
+**`docs/user` is out of date and has not been reviewed.** It was inherited from T3 Code
+and still describes a hosted T3 Connect account, a `t3` command-line tool, and a mobile
+app — none of which exist here. Read it as history, not as instructions.
+
 ## Repository layout
 
 - `apps/desktop`: Electron shell, local backend startup, previews, and screen capture.
@@ -30,6 +38,12 @@ pnpm exec vp run --filter @t3tools/desktop --filter @t3tools/web --filter t3 typ
 - `packages/contracts`, `packages/client-runtime`, `packages/shared`: shared types and runtime code.
 - `native`: native helpers used by the desktop app.
 
-This fork is still being reduced. Some remote, account, update, and non-macOS implementation code remains inside the retained packages and is not part of the intended ito experience.
+## Reduction status
 
-See [TODO.md](./TODO.md) for the cleanup checklist.
+The T3 cloud service, relay, hosted web app, account sign-in, mobile app, auto-updater,
+and WSL backend are gone, along with the Windows and Linux code in the Electron shell and
+the browser cookie import. What the app does on this Mac is unchanged.
+
+Some non-macOS branches remain in the server and renderer. They need case-by-case
+judgement rather than a sweep, because an SSH environment runs a server on a remote host
+that may not be a Mac. See [TODO.md](./TODO.md) for what is left.

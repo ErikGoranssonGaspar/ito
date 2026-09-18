@@ -155,7 +155,7 @@ const decryptCbc = (
  * Decrypts one stored value, choosing the scheme from its prefix. Returns null
  * when no key covers that scheme.
  */
-export function decryptChromiumValue(
+function decryptChromiumValue(
   encrypted: Uint8Array,
   keys: ChromiumKeyMaterial,
   domain: string,
