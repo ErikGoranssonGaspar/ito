@@ -9,9 +9,7 @@
  *
  * Each entry pins its own paths and credential-store coordinates rather than
  * deriving them, because the forks do not agree. macOS uses service/account
- * pairs, while Linux Chromium uses a custom libsecret schema keyed by an
- * `application` attribute. The user-data directory also differs per fork and
- * per platform.
+ * pairs. The user-data directory also differs per fork and per platform.
  *
  * @module BrowserImportSources
  */
@@ -59,8 +57,6 @@ export interface BrowserImportSourceDefinition {
   /** Chromium on macOS only: where the OSCrypt key lives in the keychain. */
   readonly keychainService?: string;
   readonly keychainAccount?: string;
-  /** Chromium's `application` attribute in the Linux libsecret schema. */
-  readonly linuxSecretApplication?: string;
 }
 
 const macApplicationSupport = (
@@ -79,8 +75,6 @@ const chromiumSource = (input: {
   readonly keychainService: string;
   readonly keychainAccount: string;
   readonly macSegments: ReadonlyArray<string>;
-  readonly linuxSegments?: ReadonlyArray<string>;
-  readonly linuxSecretApplication?: string;
   readonly windowsSegments?: ReadonlyArray<string>;
 }): BrowserImportSourceDefinition => ({
   id: input.id,
@@ -88,14 +82,10 @@ const chromiumSource = (input: {
   engine: "chromium",
   platforms: [
     "darwin" as NodeJS.Platform,
-    ...(input.linuxSegments ? ["linux" as NodeJS.Platform] : []),
     ...(input.windowsSegments ? ["win32" as NodeJS.Platform] : []),
   ],
   keychainService: input.keychainService,
   keychainAccount: input.keychainAccount,
-  ...(input.linuxSecretApplication === undefined
-    ? {}
-    : { linuxSecretApplication: input.linuxSecretApplication }),
   userDataDirectory: (context) => {
     if (context.platform === "darwin") return macApplicationSupport(context, ...input.macSegments);
     if (context.platform === "win32") {
@@ -103,25 +93,20 @@ const chromiumSource = (input: {
         ? context.path.join(context.localAppData, ...input.windowsSegments)
         : undefined;
     }
-    return input.linuxSegments
-      ? context.path.join(context.home, ".config", ...input.linuxSegments)
-      : undefined;
+    return undefined;
   },
 });
 
 export const BROWSER_IMPORT_SOURCES: ReadonlyArray<BrowserImportSourceDefinition> = [
   // No Chromium fork is importable on Windows: since Chrome 127 their cookies
   // are encrypted to the browser's own identity (App-Bound Encryption), so no
-  // other process can read them. macOS and Linux keep working, so only the
-  // Windows segments are omitted.
+  // other process can read them. Only the Windows segments are omitted.
   chromiumSource({
     id: "chrome",
     name: "Chrome",
     keychainService: "Chrome Safe Storage",
     keychainAccount: "Chrome",
     macSegments: ["Google", "Chrome"],
-    linuxSegments: ["google-chrome"],
-    linuxSecretApplication: "chrome",
   }),
   chromiumSource({
     id: "edge",
@@ -129,8 +114,6 @@ export const BROWSER_IMPORT_SOURCES: ReadonlyArray<BrowserImportSourceDefinition
     keychainService: "Microsoft Edge Safe Storage",
     keychainAccount: "Microsoft Edge",
     macSegments: ["Microsoft Edge"],
-    linuxSegments: ["microsoft-edge"],
-    linuxSecretApplication: "msedge",
   }),
   chromiumSource({
     id: "brave",
@@ -138,8 +121,6 @@ export const BROWSER_IMPORT_SOURCES: ReadonlyArray<BrowserImportSourceDefinition
     keychainService: "Brave Safe Storage",
     keychainAccount: "Brave",
     macSegments: ["BraveSoftware", "Brave-Browser"],
-    linuxSegments: ["BraveSoftware", "Brave-Browser"],
-    linuxSecretApplication: "brave",
   }),
   chromiumSource({
     id: "vivaldi",
@@ -147,8 +128,6 @@ export const BROWSER_IMPORT_SOURCES: ReadonlyArray<BrowserImportSourceDefinition
     keychainService: "Vivaldi Safe Storage",
     keychainAccount: "Vivaldi",
     macSegments: ["Vivaldi"],
-    linuxSegments: ["vivaldi"],
-    linuxSecretApplication: "vivaldi",
   }),
   chromiumSource({
     id: "opera",
@@ -156,8 +135,6 @@ export const BROWSER_IMPORT_SOURCES: ReadonlyArray<BrowserImportSourceDefinition
     keychainService: "Opera Safe Storage",
     keychainAccount: "Opera",
     macSegments: ["com.operasoftware.Opera"],
-    linuxSegments: ["opera"],
-    linuxSecretApplication: "opera",
   }),
   // Arc has no Linux build.
   chromiumSource({
@@ -173,10 +150,7 @@ export const BROWSER_IMPORT_SOURCES: ReadonlyArray<BrowserImportSourceDefinition
     keychainService: "Helium Storage Key",
     keychainAccount: "Helium",
     macSegments: ["net.imput.helium"],
-    linuxSegments: ["net.imput.helium"],
     windowsSegments: ["imput", "Helium", "User Data"],
-    // Helium retains Chromium's libsecret application name on Linux.
-    linuxSecretApplication: "chromium",
   }),
   {
     // The default jar lives here; named profiles use WebKit data stores

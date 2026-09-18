@@ -11,9 +11,6 @@ import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopAppSettings from "./DesktopAppSettings.ts";
 
 const DesktopSettingsPatch = Schema.Struct({
-  linuxPasswordStore: Schema.optionalKey(
-    Schema.Literals(["auto", "gnome-libsecret", "kwallet", "kwallet5", "kwallet6"]),
-  ),
   mainWindowBounds: Schema.optionalKey(
     Schema.NullOr(
       Schema.Struct({
@@ -123,7 +120,6 @@ describe("DesktopSettings", () => {
     assert.deepEqual(
       DesktopAppSettings.resolveDefaultDesktopSettings("0.0.17-nightly.20260415.1"),
       {
-        linuxPasswordStore: "auto",
         localEnvironmentEnabled: true,
         mainWindowBounds: null,
         mainWindowMaximized: false,
@@ -144,7 +140,6 @@ describe("DesktopSettings", () => {
       Effect.gen(function* () {
         const settings = yield* DesktopAppSettings.DesktopAppSettings;
         yield* writeSettingsPatch({
-          linuxPasswordStore: "gnome-libsecret",
           serverExposureMode: "network-accessible",
           tailscaleServeEnabled: true,
           tailscaleServePort: 8443,
@@ -153,7 +148,6 @@ describe("DesktopSettings", () => {
         });
 
         assert.deepEqual(yield* settings.load, {
-          linuxPasswordStore: "gnome-libsecret",
           localEnvironmentEnabled: true,
           mainWindowBounds: null,
           mainWindowMaximized: false,
@@ -261,7 +255,6 @@ describe("DesktopSettings", () => {
         );
 
         assert.deepEqual(yield* settings.load, {
-          linuxPasswordStore: "auto",
           localEnvironmentEnabled: true,
           mainWindowBounds: { x: 120, y: 80, width: 1280, height: 900 },
           mainWindowMaximized: false,
@@ -297,7 +290,7 @@ describe("DesktopSettings", () => {
   );
 
   it.effect(
-    "normalizes unsupported linux password-store values without dropping other settings",
+    "ignores the obsolete Linux password-store setting without dropping other settings",
     () =>
       withSettings(
         Effect.gen(function* () {
@@ -318,7 +311,6 @@ describe("DesktopSettings", () => {
           );
 
           assert.deepEqual(yield* settings.load, {
-            linuxPasswordStore: "auto",
             localEnvironmentEnabled: true,
             mainWindowBounds: null,
             mainWindowMaximized: false,
@@ -367,7 +359,6 @@ describe("DesktopSettings", () => {
         });
 
         assert.deepEqual(yield* settings.load, {
-          linuxPasswordStore: "auto",
           localEnvironmentEnabled: true,
           mainWindowBounds: null,
           mainWindowMaximized: false,
@@ -396,7 +387,6 @@ describe("DesktopSettings", () => {
         });
 
         assert.deepEqual(yield* settings.load, {
-          linuxPasswordStore: "auto",
           localEnvironmentEnabled: true,
           mainWindowBounds: null,
           mainWindowMaximized: false,
@@ -424,7 +414,6 @@ describe("DesktopSettings", () => {
         });
 
         assert.deepEqual(yield* settings.load, {
-          linuxPasswordStore: "auto",
           localEnvironmentEnabled: true,
           mainWindowBounds: null,
           mainWindowMaximized: false,

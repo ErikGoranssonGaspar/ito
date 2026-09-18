@@ -280,7 +280,6 @@ export const make = Effect.gen(function* BrowserImportMake() {
               cookieDatabasePath: databasePath,
               keychainService: definition.keychainService,
               keychainAccount: definition.keychainAccount,
-              linuxSecretApplication: definition.linuxSecretApplication,
               ...(platform === "win32" && userDataDirectory !== undefined
                 ? {
                     windowsLocalStatePath: pathContext.path.join(userDataDirectory, "Local State"),

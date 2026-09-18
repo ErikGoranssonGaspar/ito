@@ -37,27 +37,6 @@ import { symlinksSupported } from "@t3tools/shared/testing/symlinks";
 
 const helium = BROWSER_IMPORT_SOURCES.find((source) => source.id === "helium")!;
 
-describe("Linux Chromium secret applications", () => {
-  it("pins the libsecret application attribute for each supported fork", () => {
-    assert.deepEqual(
-      Object.fromEntries(
-        BROWSER_IMPORT_SOURCES.filter((source) => source.platforms.includes("linux")).map(
-          (source) => [source.id, source.linuxSecretApplication],
-        ),
-      ),
-      {
-        chrome: "chrome",
-        edge: "msedge",
-        brave: "brave",
-        vivaldi: "vivaldi",
-        opera: "opera",
-        helium: "chromium",
-        firefox: undefined,
-      },
-    );
-  });
-});
-
 const platformError = (reasonTag: string): PlatformError.PlatformError =>
   ({ _tag: "PlatformError", reason: { _tag: reasonTag } }) as never;
 
@@ -125,37 +104,6 @@ const writeFirefoxCookieDatabase = (
     for (let index = 0; index < containerCount; index += 1) insert.run("^userContextId=2");
     database.close();
   });
-
-describe("Helium on Linux", () => {
-  it.effect.skipIf(!symlinksSupported)("discovers its profiles and checks the user-data lock", () =>
-    run(
-      Effect.gen(function* () {
-        const fileSystem = yield* FileSystem.FileSystem;
-        const home = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3code-helium-linux-" });
-        const context = yield* sourcePathContext.pipe(
-          Effect.provideService(HostProcessEnvironment, { HOME: home }),
-          Effect.provideService(HostProcessPlatform, "linux"),
-        );
-        const root = `${home}/.config/net.imput.helium`;
-        yield* fileSystem.makeDirectory(`${root}/Default`, { recursive: true });
-        yield* writeCookieDatabase(`${root}/Default/Cookies`, 3);
-        yield* fileSystem.writeFileString(
-          `${root}/Local State`,
-          '{"profile":{"info_cache":{"Default":{"name":"Personal"}}}}',
-        );
-
-        assert.include(helium.platforms, "linux");
-        assert.isTrue(yield* isSourceInstalled(helium, context));
-        assert.deepEqual(yield* listSourceProfiles(helium, context), [
-          { directory: "Default", name: "Personal", cookieCount: 3 },
-        ]);
-        assert.isFalse(yield* isSourceRunning(helium, context));
-        yield* fileSystem.symlink("foreign-host-4242", `${root}/SingletonLock`);
-        assert.isTrue(yield* isSourceRunning(helium, context));
-      }),
-    ),
-  );
-});
 
 describe("Helium on Windows", () => {
   it.effect("uses Helium's local app-data profile while other Chromium forks stay disabled", () =>

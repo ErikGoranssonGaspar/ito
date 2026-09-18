@@ -7,9 +7,8 @@
  * with the key its prefix calls for. Key acquisition — and the consent it
  * needs — lives in `ChromiumKeys`.
  *
- * Records whose scheme we hold no key for are skipped rather than failing the
- * whole import: a Linux database can mix `v10` and `v11`. A partial result
- * reported honestly is more useful than an all-or-nothing error.
+ * Records whose scheme we hold no key for are skipped and reported as
+ * undecryptable.
  *
  * @module ChromiumCookies
  */
@@ -43,7 +42,6 @@ import {
 const AES_CBC_IV = Buffer.alloc(16, 0x20);
 const AES_GCM_NONCE_LENGTH = 12;
 const AES_GCM_TAG_LENGTH = 16;
-const isChromiumKeyError = Schema.is(ChromiumKeyError);
 
 /**
  * Every way the read can fail: the key failures, plus the ones this module
@@ -186,7 +184,7 @@ export function decryptChromiumValue(
   keys: ChromiumKeyMaterial,
   domain: string,
   schemaVersion = 23,
-  platform: NodeJS.Platform = "linux",
+  platform: NodeJS.Platform = "darwin",
 ): string | null {
   const buffer = Buffer.from(encrypted);
   if (buffer.length === 0) return "";
@@ -201,30 +199,13 @@ export function decryptChromiumValue(
       : null;
   }
 
-  // Chromium retries a failed record with a key derived from an empty
-  // passphrase, because some Linux clients wrote data that way
-  // (crbug.com/1195256). A record whose own key is missing entirely stays
-  // skipped, matching Chromium.
   if (prefix === "v10") {
     if (!keys.cbcV10) return null;
-    return (
-      decryptCbc(payload, keys.cbcV10, domain, schemaVersion) ??
-      (keys.cbcEmpty ? decryptCbc(payload, keys.cbcEmpty, domain, schemaVersion) : null)
-    );
+    return decryptCbc(payload, keys.cbcV10, domain, schemaVersion);
   }
-  if (prefix === "v11") {
-    if (!keys.cbcV11) return null;
-    return (
-      decryptCbc(payload, keys.cbcV11, domain, schemaVersion) ??
-      (keys.cbcEmpty ? decryptCbc(payload, keys.cbcEmpty, domain, schemaVersion) : null)
-    );
-  }
-  // No recognised prefix: Chromium on macOS and Linux both treat this as
-  // legacy data stored in the clear and return it as-is, so it is a readable
-  // cookie rather than an undecryptable one. Windows is the exception — its
-  // app-bound `v20` blobs also lack these prefixes and must not be read as
-  // plaintext — but Windows Chromium is not importable here at all.
-  if (platform === "darwin" || platform === "linux") {
+  // On macOS, unversioned values are legacy cleartext. Windows app-bound
+  // records must remain undecryptable.
+  if (platform === "darwin") {
     return stripDomainBinding(buffer, domain, schemaVersion)?.toString("utf8") ?? null;
   }
   return null;
@@ -288,19 +269,6 @@ export const readChromiumCookieDatabase = Effect.fn("ChromiumCookies.readChromiu
         sameSite: sameSiteFromColumn(row.samesite),
       });
     }
-    // Keep partial imports, but do not call a missing key a successful import
-    // when it prevented every otherwise importable cookie from being read.
-    if (
-      cookies.length === 0 &&
-      keys.cbcV11Error !== undefined &&
-      result.rows.some(
-        (row) =>
-          row.top_frame_site_key === "" &&
-          Buffer.from(row.encrypted_value.subarray(0, 3)).toString("latin1") === "v11",
-      )
-    ) {
-      return yield* keys.cbcV11Error;
-    }
     return {
       cookies,
       undecryptable,
@@ -313,7 +281,6 @@ export interface ChromiumCookieSource {
   readonly cookieDatabasePath: string;
   readonly keychainService: string | undefined;
   readonly keychainAccount: string | undefined;
-  readonly linuxSecretApplication: string | undefined;
   readonly windowsLocalStatePath?: string;
   /** Supplied by the caller from `HostProcessPlatform` rather than read here. */
   readonly platform: NodeJS.Platform;
@@ -333,7 +300,6 @@ export const readChromiumCookies = Effect.fn("ChromiumCookies.readChromiumCookie
           platform: source.platform,
           keychainService: source.keychainService,
           keychainAccount: source.keychainAccount,
-          linuxSecretApplication: source.linuxSecretApplication,
         })
   ).pipe(
     Effect.mapError(
@@ -361,7 +327,7 @@ export const readChromiumCookies = Effect.fn("ChromiumCookies.readChromiumCookie
     Effect.mapError(
       (cause) =>
         new ChromiumCookieReadError({
-          reason: isChromiumKeyError(cause) ? cause.reason : "readFailed",
+          reason: "readFailed",
           cookieDatabasePath: source.cookieDatabasePath,
           cause,
         }),

@@ -1,19 +1,8 @@
 // @effect-diagnostics nodeBuiltinImport:off - `node:crypto` implements the
 // OSCrypt key derivation Chromium uses; Effect has no equivalent.
 /**
- * Chromium cookie-encryption keys, per platform.
- *
- * Chromium calls this OSCrypt, and it works differently on each OS:
- *
- * - **macOS** keeps one key in the login keychain. Reading it prompts the
- *   user, which is the consent this feature is built around.
- * - **Linux** may keep a key in libsecret/kwallet (`v11` records), or use a
- *   hardcoded `peanuts` passphrase when no keyring is available (`v10`). Both
- *   can appear in the same database, so both are derived up front and chosen
- *   per record.
- *
- * - **Windows** legacy Chromium stores protect a random AES key with DPAPI.
- *   App-Bound Encryption remains deliberately unsupported.
+ * Chromium cookie-encryption keys. macOS keeps a key in the login keychain;
+ * legacy Windows stores protect a random AES key with DPAPI.
  *
  * @module ChromiumKeys
  */
@@ -27,15 +16,10 @@ import * as FileSystem from "effect/FileSystem";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
-import { LinuxBrowserSecretPath } from "./LinuxBrowserSecret.ts";
 
 const KEY_SALT = "saltysalt";
 const KEY_LENGTH = 16;
-/** macOS stretches the keychain secret; Linux uses a single iteration. */
 const MAC_KEY_ITERATIONS = 1003;
-const LINUX_KEY_ITERATIONS = 1;
-/** Chromium's documented fallback passphrase when no Linux keyring is present. */
-const LINUX_FALLBACK_PASSPHRASE = "peanuts";
 
 export const ChromiumKeyFailure = Schema.Literals([
   "needsKeychainApproval",
@@ -63,18 +47,8 @@ export class ChromiumKeyError extends Schema.TaggedError<ChromiumKeyError>()("Ch
  * records are skipped rather than the whole import failing.
  */
 export interface ChromiumKeyMaterial {
-  /** AES-128-CBC on macOS, and the keyring-free Linux fallback. */
+  /** AES-128-CBC on macOS. */
   readonly cbcV10?: Buffer;
-  /** AES-128-CBC, Linux keyring-derived. */
-  readonly cbcV11?: Buffer;
-  /** Retained so an import that needs this key can report why it is missing. */
-  readonly cbcV11Error?: ChromiumKeyError;
-  /**
-   * AES-128-CBC from an empty passphrase. Some Linux clients wrote records
-   * with it (crbug.com/1195256), so Chromium — and this import — retry with it
-   * after a record's own key fails.
-   */
-  readonly cbcEmpty?: Buffer;
   /** AES-256-GCM key used by pre-App-Bound Chromium on Windows. */
   readonly gcmV10?: Buffer;
 }
@@ -124,58 +98,6 @@ const readKeychainSecret = Effect.fn("ChromiumKeys.readKeychainSecret")(function
     return yield* new ChromiumKeyError({ reason: "keychainItemMissing" });
   }
   return secret;
-});
-
-/**
- * The bundled helper searches Chromium's libsecret schema and application
- * attribute, retaining the desktop's normal unlock prompt. Its exit codes
- * distinguish a missing key, denied access, and an unavailable keyring without
- * parsing localized error messages. Stdout is the unmodified secret.
- */
-export const readLinuxSecret = Effect.fn("ChromiumKeys.readLinuxSecret")(function* (
-  application: string,
-) {
-  return yield* Effect.scoped(
-    Effect.gen(function* () {
-      const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
-      const environment = yield* HostProcessEnvironment;
-      const helper = yield* LinuxBrowserSecretPath;
-      if (helper === undefined) {
-        return yield* new ChromiumKeyError({ reason: "keychainUnavailable" });
-      }
-      const handle = yield* spawner
-        .spawn(ChildProcess.make(helper, [application], { stdin: "ignore", env: environment }))
-        .pipe(
-          Effect.mapError(
-            (cause) => new ChromiumKeyError({ reason: "keychainUnavailable", cause }),
-          ),
-        );
-      const [secret, , exitCode] = yield* Effect.all(
-        [
-          handle.stdout.pipe(Stream.decodeText(), Stream.mkString),
-          handle.stderr.pipe(Stream.runDrain),
-          handle.exitCode,
-        ],
-        { concurrency: "unbounded" },
-      ).pipe(
-        Effect.mapError((cause) => new ChromiumKeyError({ reason: "keychainUnavailable", cause })),
-      );
-      if (Number(exitCode) !== 0) {
-        return yield* new ChromiumKeyError({
-          reason:
-            Number(exitCode) === 2
-              ? "keychainItemMissing"
-              : Number(exitCode) === 3
-                ? "needsKeychainApproval"
-                : "keychainUnavailable",
-        });
-      }
-      if (secret === "") {
-        return yield* new ChromiumKeyError({ reason: "keychainItemMissing" });
-      }
-      return secret;
-    }),
-  );
 });
 
 const WindowsLocalState = Schema.Struct({
@@ -288,47 +210,17 @@ export interface ChromiumKeyRequest {
   readonly platform: NodeJS.Platform;
   readonly keychainService: string | undefined;
   readonly keychainAccount: string | undefined;
-  readonly linuxSecretApplication: string | undefined;
 }
 
 export const resolveChromiumKeys = Effect.fn("ChromiumKeys.resolveChromiumKeys")(function* (
   request: ChromiumKeyRequest,
-): Effect.fn.Return<
-  ChromiumKeyMaterial,
-  ChromiumKeyError,
-  ChildProcessSpawner.ChildProcessSpawner
-> {
+): Effect.fn.Return<ChromiumKeyMaterial, ChromiumKeyError> {
   if (request.platform === "darwin") {
     if (!request.keychainService || !request.keychainAccount) {
       return yield* new ChromiumKeyError({ reason: "unsupportedPlatform" });
     }
     const secret = yield* readKeychainSecret(request.keychainService, request.keychainAccount);
     return { cbcV10: derive(secret, MAC_KEY_ITERATIONS) };
-  }
-
-  if (request.platform === "linux") {
-    // The fallback passphrase always applies to `v10` records; a keyring
-    // secret, when one is reachable, additionally unlocks `v11`. Preserve its
-    // failure until the reader knows whether any cookies needed that key.
-    const keyringSecret = request.linuxSecretApplication
-      ? yield* readLinuxSecret(request.linuxSecretApplication).pipe(
-          // v10 remains importable when Secret Service is absent or does not
-          // contain a key. An explicit denial/lock/cancel remains a consent
-          // failure rather than being silently downgraded.
-          Effect.catch((error) =>
-            error.reason === "needsKeychainApproval" ? Effect.fail(error) : Effect.succeed(error),
-          ),
-        )
-      : undefined;
-    return {
-      cbcV10: derive(LINUX_FALLBACK_PASSPHRASE, LINUX_KEY_ITERATIONS),
-      ...(typeof keyringSecret === "string"
-        ? { cbcV11: derive(keyringSecret, LINUX_KEY_ITERATIONS) }
-        : keyringSecret
-          ? { cbcV11Error: keyringSecret }
-          : {}),
-      cbcEmpty: derive("", LINUX_KEY_ITERATIONS),
-    };
   }
 
   return yield* new ChromiumKeyError({ reason: "unsupportedPlatform" });

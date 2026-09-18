@@ -20,7 +20,6 @@ it.effect("reports an unavailable keychain when the macOS binding cannot load", 
       platform: "darwin",
       keychainService: "Chrome Safe Storage",
       keychainAccount: "Chrome",
-      linuxSecretApplication: undefined,
     }).pipe(Effect.flip);
 
     expect(error).toBeInstanceOf(ChromiumKeyError);

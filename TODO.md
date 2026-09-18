@@ -13,6 +13,8 @@ This tracks the reduction of the T3 Code fork. The longer-term product direction
 - [x] Remove T3 account profile and mobile-device pages from the settings sidebar.
 - [x] Reduce the server's external browser, editor, and file-manager launcher to macOS behavior.
 - [x] Remove Linux desktop-entry URL registration and pre-ready password-store setup from the Electron startup path.
+- [x] Remove the unused Linux password-store setting and its helper.
+- [x] Remove the Linux browser-secret helper and Chromium cookie import path from the desktop build.
 - [x] Preserve this checkout's `.t3` data and settings.
 
 ## Next cleanup passes
