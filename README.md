@@ -22,6 +22,13 @@ pnpm build
 pnpm exec vp run --filter @t3tools/desktop --filter @t3tools/web --filter t3 typecheck
 ```
 
+After building, check that the app still launches. This takes about ten seconds and uses
+a throwaway state directory, so it never touches your own:
+
+```bash
+pnpm test:desktop-smoke
+```
+
 ## Documentation
 
 The notes in `docs/internals` and `docs/operations` describe the code as it stands.
@@ -64,10 +71,6 @@ Things that are deliberately unfinished, roughly in the order they are worth doi
   affects upgrading messages from older clients.
 - **`GitVcsDriverCore` looks flaky.** It failed once under full-suite load and passes in
   isolation.
-- **The desktop smoke test is broken** (`apps/desktop/scripts/smoke-test.mjs`). It hangs
-  instead of exiting, it asserts only the absence of fatal strings so it can pass without
-  the app ever starting, and it pins no `T3CODE_HOME` — so it boots a server against the
-  live `~/.t3/userdata`. Do not run it until it is fixed.
 - **There is no CI.** No workflows exist, so nothing runs the checks automatically.
 - **`AGENTS.md` and `.agents` still carry T3-era assumptions** and want a review.
 
