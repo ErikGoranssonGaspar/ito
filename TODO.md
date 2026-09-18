@@ -12,6 +12,7 @@ This tracks the reduction of the T3 Code fork. The longer-term product direction
 - [x] Remove CodeRabbit, Macroscope, Cursor Cloud, VS Code, and iOS simulator project configuration, Git hooks, and vendored reference repositories.
 - [x] Remove T3 account profile and mobile-device pages from the settings sidebar.
 - [x] Reduce the server's external browser, editor, and file-manager launcher to macOS behavior.
+- [x] Remove Linux desktop-entry URL registration and pre-ready password-store setup from the Electron startup path.
 - [x] Preserve this checkout's `.t3` data and settings.
 
 ## Next cleanup passes
@@ -19,7 +20,7 @@ This tracks the reduction of the T3 Code fork. The longer-term product direction
 - [ ] Trace and remove remaining T3 account, relay, remote connection, and hosted-browser code shared with the desktop renderer and server.
 - [ ] Remove remaining Windows, Linux, WSL, updater, and distribution code from retained packages.
 - [ ] Prune dependencies, license overrides, tests, and documentation made obsolete by those cuts.
-- [ ] Review `.agents` with the owner and keep or adapt useful skills for the applied mathematics workspace.
 - [ ] After each substantial cut, run focused checks and verify the macOS desktop app still starts.
+- [ ] Once the cleanup is finished, review `AGENTS.md` and the related agent setup files in `.agents` with the owner. Keep useful instructions and skills, and remove or update T3-era assumptions for ito.
 
 Keep all current coding-agent providers, terminal, editing, Git tools, checkpoints, GitHub pull-request tools, MCP, preview/browser, screen capture, notifications, and local activity views until the owner has tried them.

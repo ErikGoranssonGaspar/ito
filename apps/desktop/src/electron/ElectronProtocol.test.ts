@@ -6,15 +6,20 @@ import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import { beforeEach, vi } from "vite-plus/test";
 
-const { handleMock, netFetchMock, unhandleMock } = vi.hoisted(() => ({
+const { handleMock, netFetchMock, registerSchemesMock, unhandleMock } = vi.hoisted(() => ({
   handleMock: vi.fn(),
   netFetchMock: vi.fn(),
+  registerSchemesMock: vi.fn(),
   unhandleMock: vi.fn(),
 }));
 
 vi.mock("electron", () => ({
   net: { fetch: netFetchMock },
-  protocol: { handle: handleMock, unhandle: unhandleMock },
+  protocol: {
+    handle: handleMock,
+    registerSchemesAsPrivileged: registerSchemesMock,
+    unhandle: unhandleMock,
+  },
 }));
 
 import * as ElectronProtocol from "./ElectronProtocol.ts";
@@ -25,8 +30,19 @@ describe("ElectronProtocol", () => {
   beforeEach(() => {
     handleMock.mockReset();
     netFetchMock.mockReset();
+    registerSchemesMock.mockReset();
     unhandleMock.mockReset();
   });
+
+  it.effect("registers both desktop schemes before Electron is ready", () =>
+    Effect.gen(function* () {
+      yield* Effect.scoped(Layer.build(ElectronProtocol.layerSchemePrivileges));
+      assert.deepEqual(
+        registerSchemesMock.mock.calls[0]?.[0].map((entry: { scheme: string }) => entry.scheme),
+        ["t3code", "t3code-dev"],
+      );
+    }),
+  );
 
   it.effect("serves the bundled client from disk without a backend", () =>
     Effect.gen(function* () {
@@ -241,11 +257,7 @@ describe("ElectronProtocol", () => {
       }),
     );
 
-    assert.deepEqual(directives["script-src"], [
-      "'self'",
-      "'unsafe-inline'",
-      "'wasm-unsafe-eval'",
-    ]);
+    assert.deepEqual(directives["script-src"], ["'self'", "'unsafe-inline'", "'wasm-unsafe-eval'"]);
     assert.deepEqual(directives["connect-src"], ["'self'", "http:", "https:", "ws:", "wss:"]);
     assert.deepEqual(directives["img-src"], [
       "'self'",

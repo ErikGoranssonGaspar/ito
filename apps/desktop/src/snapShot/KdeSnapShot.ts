@@ -8,7 +8,6 @@ import * as NodeURL from "node:url";
 import * as Schema from "effect/Schema";
 import type { DesktopCaptureHelperState } from "@t3tools/contracts";
 
-import { escapeDesktopEntryExecArgument } from "../app/DesktopLinuxUrlHandler.ts";
 import type { LinuxWindowSnapshot } from "./LinuxSnapShot.ts";
 import { readPortalPng } from "./linuxCaptureSession.ts";
 import { startNativeCaptureFeedback } from "./NativeCaptureFeedback.ts";
@@ -27,6 +26,21 @@ export function kdeCapturePaths(paths: KdeCapturePaths) {
     executable: NodePath.join(paths.dataHome, "t3code", "kde-capture", KDE_CAPTURE_EXECUTABLE),
     desktop: NodePath.join(paths.dataHome, "applications", DESKTOP_FILE),
   };
+}
+
+// Desktop entries apply string escaping after Exec argument quoting.
+function escapeDesktopEntryExecArgument(value: string): string {
+  const quoted = value
+    .replaceAll("\\", () => "\\\\")
+    .replaceAll("`", () => "\\`")
+    .replaceAll("$", () => "\\$")
+    .replaceAll('"', () => '\\"')
+    .replaceAll("%", () => "%%");
+  return `"${quoted}"`
+    .replaceAll("\\", "\\\\")
+    .replaceAll("\n", "\\n")
+    .replaceAll("\r", "\\r")
+    .replaceAll("\t", "\\t");
 }
 
 export function kdeCaptureDesktopEntry(executable: string): string {

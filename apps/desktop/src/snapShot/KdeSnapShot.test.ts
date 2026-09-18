@@ -80,6 +80,11 @@ it("detects KDE only outside a sandbox", () => {
   expect(isKdeCaptureSession({ XDG_CURRENT_DESKTOP: "KDE", SNAP: "/snap/app" })).toBe(false);
 });
 
+it("quotes reserved characters in the KDE helper desktop entry", () => {
+  const entry = kdeCaptureDesktopEntry('/tmp/helper "trial" $value%');
+  expect(entry).toContain(String.raw`Exec="/tmp/helper \\"trial\\" \\$value%%" check`);
+});
+
 it("does not install or request screenshots during initial discovery", async () => {
   expect((await setup.state()).status).toBe("not-installed");
   expect(execute).not.toHaveBeenCalled();
