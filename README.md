@@ -25,10 +25,7 @@ pnpm exec vp run --filter @t3tools/desktop --filter @t3tools/web --filter t3 typ
 ## Documentation
 
 The notes in `docs/internals` and `docs/operations` describe the code as it stands.
-
-**`docs/user` is out of date and has not been reviewed.** It was inherited from T3 Code
-and still describes a hosted T3 Connect account, a `t3` command-line tool, and a mobile
-app — none of which exist here. Read it as history, not as instructions.
+`docs/user` does not — see Known gaps.
 
 ## Repository layout
 
@@ -42,8 +39,37 @@ app — none of which exist here. Read it as history, not as instructions.
 
 The T3 cloud service, relay, hosted web app, account sign-in, mobile app, auto-updater,
 and WSL backend are gone, along with the Windows and Linux code in the Electron shell and
-the browser cookie import. What the app does on this Mac is unchanged.
+the browser cookie import. `knip` reports no unused files or dependencies. What the app
+does on this Mac is unchanged.
 
-Some non-macOS branches remain in the server and renderer. They need case-by-case
-judgement rather than a sweep, because an SSH environment runs a server on a remote host
-that may not be a Mac. See [TODO.md](./TODO.md) for what is left.
+## Known gaps
+
+Things that are deliberately unfinished, roughly in the order they are worth doing.
+
+- **Branding.** The app still calls itself "T3 Code (Alpha)". Packages are `@t3tools/*`
+  and `t3`, environment variables are `T3CODE_*`, and local state lives in `~/.t3`.
+  Renaming touches the state directory, so it needs either a migration or a decision to
+  keep `.t3` for data compatibility.
+- **`docs/user` is stale and unreviewed.** Inherited from T3 Code, it still describes a
+  hosted T3 Connect account, a `t3` command-line tool, and a mobile app — none of which
+  exist here. Read it as history, not as instructions. Rewriting it is a description of
+  what the product now is, so it is not a mechanical find-and-replace.
+- **Non-macOS branches remain in the server and renderer**, roughly 110 `process.platform`
+  checks. These need case-by-case judgement rather than a sweep: an SSH environment runs a
+  server on a remote host that may not be a Mac, so a `"linux"` branch is only dead when it
+  is about _this_ host. Check each against `packages/ssh` before cutting it.
+- **One test fails**, and it is a real bug: `composerContextLegacy` mis-handles an
+  astral-plane character immediately before an `@mention`, because `/[\p{L}...]$/u` does
+  not match a surrogate pair where the equivalent `/(?:\p{L}|[...])$/u` does. It only
+  affects upgrading messages from older clients.
+- **`GitVcsDriverCore` looks flaky.** It failed once under full-suite load and passes in
+  isolation.
+- **The desktop smoke test is broken** (`apps/desktop/scripts/smoke-test.mjs`). It hangs
+  instead of exiting, it asserts only the absence of fatal strings so it can pass without
+  the app ever starting, and it pins no `T3CODE_HOME` — so it boots a server against the
+  live `~/.t3/userdata`. Do not run it until it is fixed.
+- **There is no CI.** No workflows exist, so nothing runs the checks automatically.
+- **`AGENTS.md` and `.agents` still carry T3-era assumptions** and want a review.
+
+Node 24 is expected (`package.json` engines); this checkout has been developed on Node 26
+without trouble, but that is untested ground.
