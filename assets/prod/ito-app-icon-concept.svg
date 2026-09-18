@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>Itô app icon concept</title>
+  <desc>A wandering dark green line rises into a lowercase i with a gold dot on a pale rounded square.</desc>
+  <rect x="100" y="100" width="824" height="824" rx="184" fill="#F7FBF8" stroke="#DDEAE1" stroke-width="2"/>
+  <path d="M 218 625 C 255 644 279 635 308 601 C 342 559 377 572 413 615 C 447 655 480 656 517 616 C 549 581 565 562 596 579 C 631 599 620 647 658 645 C 693 643 704 614 704 570 L 704 371" fill="none" stroke="#274C43" stroke-width="58" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="704" cy="280" r="36" fill="#D4A830"/>
+</svg>
