@@ -62,9 +62,9 @@ describe("initialWizardStep", () => {
   });
 
   it("blocks on a reason nothing local can fix", () => {
-    expect(initialWizardStep(source({ unavailable: "unsupportedPlatform" }))).toEqual({
+    expect(initialWizardStep(source({ unavailable: "keychainItemMissing" }))).toEqual({
       step: "blocked",
-      reason: "unsupportedPlatform",
+      reason: "keychainItemMissing",
     });
   });
 
@@ -192,7 +192,7 @@ describe("isRetryableReason", () => {
   });
 
   it("does not offer a retry for a permanent failure", () => {
-    expect(isRetryableReason("unsupportedPlatform")).toBe(false);
+    expect(isRetryableReason("unsupportedSource")).toBe(false);
     expect(isRetryableReason("unknownSourceProfile")).toBe(false);
     // Retrying the same new-profile import cannot lower the profile count.
     expect(isRetryableReason("profileLimitReached")).toBe(false);

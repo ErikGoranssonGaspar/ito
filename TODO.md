@@ -33,6 +33,9 @@ This tracks the reduction of the T3 Code fork. The longer-term product direction
 - [x] Remove links into the T3-hosted web app: hosted pairing URLs, the hosted app
       channel selection, the CLI's hosted Clerk OAuth helper, and the "reachable from a
       hosted HTTPS app" endpoint compatibility.
+- [x] Reduce the browser cookie import to macOS: drop the Windows DPAPI key path and
+      AES-GCM records, the Windows and Linux profile roots and lock probes, and the
+      per-source platform lists.
 - [x] Preserve this checkout's `.t3` data and settings.
 
 ## Next cleanup passes
@@ -40,8 +43,9 @@ This tracks the reduction of the T3 Code fork. The longer-term product direction
 - [ ] Collapse the renderer's hosted-static-app mode. `isHostedStaticApp()` can only be
       false in the desktop app, but the `hosted-static` and `hosted-pairing` auth-gate
       states it feeds are threaded through every route guard, so this is its own pass.
-- [ ] Remove remaining Windows and Linux code from retained packages (Chromium cookie import,
-      platform branches in the server and renderer).
+- [ ] Remove the remaining Windows and Linux branches from the server and renderer —
+      about 110 `process.platform` checks across provider, terminal, telemetry and
+      shell code. Each is a small judgment call, so this wants its own careful pass.
 - [ ] Prune dependencies, license overrides, tests, and documentation made obsolete by those cuts.
 - [ ] After each substantial cut, run focused checks and verify the macOS desktop app still starts.
 - [ ] Once the cleanup is finished, review `AGENTS.md` and the related agent setup files in `.agents` with the owner. Keep useful instructions and skills, and remove or update T3-era assumptions for ito.

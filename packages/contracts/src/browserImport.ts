@@ -35,9 +35,7 @@ export type BrowserImportSourceId = typeof BrowserImportSourceId.Type;
  * Why a detected source cannot be imported right now.
  *
  * `needsKeychainApproval` and `browserRunning` are recoverable — the user
- * grants access or quits the browser. `unsupportedPlatform` is not: it covers
- * cases like Chrome on Windows, whose App-Bound Encryption is designed to stop
- * exactly this, and which we will not work around.
+ * grants access or quits the browser.
  */
 export const BrowserImportUnavailableReason = Schema.Literals([
   "notInstalled",
@@ -45,7 +43,6 @@ export const BrowserImportUnavailableReason = Schema.Literals([
   "keychainItemMissing",
   "needsFullDiskAccess",
   "browserRunning",
-  "unsupportedPlatform",
 ]);
 export type BrowserImportUnavailableReason = typeof BrowserImportUnavailableReason.Type;
 
@@ -60,6 +57,8 @@ export const BrowserImportFailureReason = Schema.Literals([
   ...BrowserImportUnavailableReason.literals,
   /** The operating system's keyring or its bundled reader is unavailable. */
   "keychainUnavailable",
+  /** The source names no keychain item, so no key can be derived for it. */
+  "unsupportedSource",
   /** No source registered under the requested id. */
   "unknownSource",
   /** The requested profile directory is not one the source reported. */
@@ -147,7 +146,6 @@ const BROWSER_IMPORT_UNAVAILABLE_COPY: Readonly<Record<BrowserImportUnavailableR
   needsFullDiskAccess:
     "Give T3 Code Full Disk Access in System Settings → Privacy & Security, then retry.",
   browserRunning: "Quit the browser first so its cookie database can be read.",
-  unsupportedPlatform: "Importing from this browser isn't possible on this platform.",
 };
 
 /** What to tell the user when an attempted import fails. */
@@ -155,6 +153,7 @@ export const BROWSER_IMPORT_FAILURE_COPY: Readonly<Record<BrowserImportFailureRe
   ...BROWSER_IMPORT_UNAVAILABLE_COPY,
   keychainUnavailable:
     "The system keyring could not be accessed. Make sure your desktop keyring is running and unlocked, then retry.",
+  unsupportedSource: "Importing from this browser isn't supported.",
   unknownSource: "That browser is no longer available to import from.",
   unknownSourceProfile: "That browser profile no longer exists.",
   sessionUnavailable: "The target profile could not be opened.",

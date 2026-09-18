@@ -21,7 +21,7 @@ import * as Schema from "effect/Schema";
 import * as Scope from "effect/Scope";
 import { ChildProcessSpawner } from "effect/unstable/process";
 
-import { HostProcessExecutablePath, HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import { HostProcessExecutablePath } from "@t3tools/shared/hostProcess";
 
 import * as BrowserSession from "../BrowserSession.ts";
 import { ChromiumCookieReadError, readChromiumCookies } from "./ChromiumCookies.ts";
@@ -90,7 +90,6 @@ const unavailableReason = Effect.fn("BrowserImport.unavailableReason")(function*
   never,
   FileSystem.FileSystem | ChildProcessSpawner.ChildProcessSpawner
 > {
-  if (!definition.platforms.includes(context.platform)) return "unsupportedPlatform";
   if (!(yield* isSourceInstalled(definition, context))) return "notInstalled";
   if (yield* isSourceRunning(definition, context)) return "browserRunning";
   // Safari's jar is found by `stat`, which TCC permits without Full Disk
@@ -169,7 +168,6 @@ export const writeCookies = Effect.fn("BrowserImport.writeCookies")(function* (
 /** @public Service construction is part of the canonical Effect module API. */
 export const make = Effect.gen(function* BrowserImportMake() {
   const browserSession = yield* BrowserSession.BrowserSession;
-  const platform = yield* HostProcessPlatform;
   const executablePath = yield* HostProcessExecutablePath;
   // Captured here so the service's methods stay free of a requirements
   // channel: the layer is built where NodeServices is already in scope.
@@ -217,7 +215,7 @@ export const make = Effect.gen(function* BrowserImportMake() {
       return yield* new BrowserImportFailedError({ sourceId: definition.id, reason: blocked });
     }
 
-    if (platform === "darwin" && definition.engine === "chromium") {
+    if (definition.engine === "chromium") {
       // macOS attributes the Keychain prompt and the resulting ACL grant to the
       // executable that asks, so record which one that was — in a packaged build
       // it is the signed app, in dev whatever binary hosts the main process.
@@ -262,7 +260,6 @@ export const make = Effect.gen(function* BrowserImportMake() {
     // identifiable and each tag is handled on its own below. The success side
     // is normalized to one shape too, so the skipped tally survives either
     // engine — Firefox stores plaintext, so nothing there is ever unreadable.
-    const userDataDirectory = definition.userDataDirectory(pathContext);
     const read: Effect.Effect<
       CookieReadResult,
       ChromiumCookieReadError | FirefoxCookieReadError | SafariCookieReadError,
@@ -280,12 +277,6 @@ export const make = Effect.gen(function* BrowserImportMake() {
               cookieDatabasePath: databasePath,
               keychainService: definition.keychainService,
               keychainAccount: definition.keychainAccount,
-              ...(platform === "win32" && userDataDirectory !== undefined
-                ? {
-                    windowsLocalStatePath: pathContext.path.join(userDataDirectory, "Local State"),
-                  }
-                : {}),
-              platform,
             });
 
     const result = yield* read.pipe(

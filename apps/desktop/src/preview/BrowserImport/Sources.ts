@@ -1,30 +1,22 @@
 /**
  * Importable browser sources.
  *
- * Chromium-family browsers keep cookies in an
- * encrypted SQLite database whose key lives in an OS credential store; Firefox
- * keeps them in plain SQLite with no key at all, so it needs no keychain and
- * works the same on every platform. Safari uses binary cookie files, with
+ * Chromium-family browsers keep cookies in an encrypted SQLite database whose
+ * key lives in the macOS keychain; Firefox keeps them in plain SQLite with no
+ * key at all, so it needs no keychain. Safari uses binary cookie files, with
  * separate WebKit data stores for named profiles.
  *
- * Each entry pins its own paths and credential-store coordinates rather than
- * deriving them, because the forks do not agree. macOS uses service/account
- * pairs. The user-data directory also differs per fork and per platform.
+ * Each entry pins its own paths and keychain coordinates rather than deriving
+ * them, because the forks do not agree on either.
  *
  * @module BrowserImportSources
  */
 import type { BrowserImportSourceId, BrowserImportSourceProfile } from "@t3tools/contracts";
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
-import {
-  HostProcessEnvironment,
-  HostProcessAddresses,
-  HostProcessHostname,
-  HostProcessPlatform,
-} from "@t3tools/shared/hostProcess";
+import { HostProcessEnvironment, HostProcessHostname } from "@t3tools/shared/hostProcess";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
-import * as PlatformError from "effect/PlatformError";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
@@ -34,27 +26,19 @@ export type BrowserImportEngine = "chromium" | "firefox" | "safari";
 
 /**
  * Directory roots a definition builds its paths from. Passed in rather than
- * read from `process`, so source resolution stays testable for platforms the
- * host is not currently running.
+ * read from `process`, so source resolution stays testable.
  */
 export interface BrowserImportPathContext {
   readonly path: Path.Path;
-  readonly platform: NodeJS.Platform;
   readonly home: string;
-  /** `%APPDATA%` on Windows; unused elsewhere. */
-  readonly appData: string | undefined;
-  /** `%LOCALAPPDATA%` on Windows; unused elsewhere. */
-  readonly localAppData: string | undefined;
 }
 
 export interface BrowserImportSourceDefinition {
   readonly id: BrowserImportSourceId;
   readonly name: string;
   readonly engine: BrowserImportEngine;
-  /** Platforms the definition has paths for. */
-  readonly platforms: ReadonlyArray<NodeJS.Platform>;
   readonly userDataDirectory: (context: BrowserImportPathContext) => string | undefined;
-  /** Chromium on macOS only: where the OSCrypt key lives in the keychain. */
+  /** Chromium only: where the OSCrypt key lives in the keychain. */
   readonly keychainService?: string;
   readonly keychainAccount?: string;
 }
@@ -64,43 +48,23 @@ const macApplicationSupport = (
   ...segments: ReadonlyArray<string>
 ) => context.path.join(context.home, "Library", "Application Support", ...segments);
 
-/**
- * One Chromium fork. The leaves differ per fork; omitting a platform's
- * segments marks the fork as unavailable there. Most Windows Chromium builds
- * use App-Bound Encryption, but forks can retain the older DPAPI-backed store.
- */
+/** One Chromium fork. The Application Support leaves differ per fork. */
 const chromiumSource = (input: {
   readonly id: BrowserImportSourceId;
   readonly name: string;
   readonly keychainService: string;
   readonly keychainAccount: string;
   readonly macSegments: ReadonlyArray<string>;
-  readonly windowsSegments?: ReadonlyArray<string>;
 }): BrowserImportSourceDefinition => ({
   id: input.id,
   name: input.name,
   engine: "chromium",
-  platforms: [
-    "darwin" as NodeJS.Platform,
-    ...(input.windowsSegments ? ["win32" as NodeJS.Platform] : []),
-  ],
   keychainService: input.keychainService,
   keychainAccount: input.keychainAccount,
-  userDataDirectory: (context) => {
-    if (context.platform === "darwin") return macApplicationSupport(context, ...input.macSegments);
-    if (context.platform === "win32") {
-      return input.windowsSegments && context.localAppData
-        ? context.path.join(context.localAppData, ...input.windowsSegments)
-        : undefined;
-    }
-    return undefined;
-  },
+  userDataDirectory: (context) => macApplicationSupport(context, ...input.macSegments),
 });
 
 export const BROWSER_IMPORT_SOURCES: ReadonlyArray<BrowserImportSourceDefinition> = [
-  // No Chromium fork is importable on Windows: since Chrome 127 their cookies
-  // are encrypted to the browser's own identity (App-Bound Encryption), so no
-  // other process can read them. Only the Windows segments are omitted.
   chromiumSource({
     id: "chrome",
     name: "Chrome",
@@ -136,7 +100,6 @@ export const BROWSER_IMPORT_SOURCES: ReadonlyArray<BrowserImportSourceDefinition
     keychainAccount: "Opera",
     macSegments: ["com.operasoftware.Opera"],
   }),
-  // Arc has no Linux build.
   chromiumSource({
     id: "arc",
     name: "Arc",
@@ -150,7 +113,6 @@ export const BROWSER_IMPORT_SOURCES: ReadonlyArray<BrowserImportSourceDefinition
     keychainService: "Helium Storage Key",
     keychainAccount: "Helium",
     macSegments: ["net.imput.helium"],
-    windowsSegments: ["imput", "Helium", "User Data"],
   }),
   {
     // The default jar lives here; named profiles use WebKit data stores
@@ -158,34 +120,22 @@ export const BROWSER_IMPORT_SOURCES: ReadonlyArray<BrowserImportSourceDefinition
     id: "safari",
     name: "Safari",
     engine: "safari",
-    platforms: ["darwin"],
     userDataDirectory: (context) =>
-      context.platform === "darwin"
-        ? context.path.join(
-            context.home,
-            "Library",
-            "Containers",
-            "com.apple.Safari",
-            "Data",
-            "Library",
-            "Cookies",
-          )
-        : undefined,
+      context.path.join(
+        context.home,
+        "Library",
+        "Containers",
+        "com.apple.Safari",
+        "Data",
+        "Library",
+        "Cookies",
+      ),
   },
   {
     id: "firefox",
     name: "Firefox",
     engine: "firefox",
-    platforms: ["darwin", "win32", "linux"],
-    userDataDirectory: (context) => {
-      if (context.platform === "darwin") return macApplicationSupport(context, "Firefox");
-      if (context.platform === "win32") {
-        return context.appData
-          ? context.path.join(context.appData, "Mozilla", "Firefox")
-          : undefined;
-      }
-      return context.path.join(context.home, ".mozilla", "firefox");
-    },
+    userDataDirectory: (context) => macApplicationSupport(context, "Firefox"),
   },
 ];
 
@@ -309,15 +259,8 @@ export function parseFirefoxProfiles(
  */
 export const sourcePathContext = Effect.gen(function* () {
   const path = yield* Path.Path;
-  const platform = yield* HostProcessPlatform;
   const environment = yield* HostProcessEnvironment;
-  return {
-    path,
-    platform,
-    home: environment.HOME ?? environment.USERPROFILE ?? "",
-    appData: environment.APPDATA,
-    localAppData: environment.LOCALAPPDATA,
-  } satisfies BrowserImportPathContext;
+  return { path, home: environment.HOME ?? "" } satisfies BrowserImportPathContext;
 });
 
 /** Shape of the slice of Chromium's `Local State` that names its profiles. */
@@ -451,7 +394,7 @@ const listSafariProfiles = Effect.fnUntraced(function* (
  * `Default` would report a browser whose cookies live in `Profile 1` as having
  * nothing to import — and it is then left out of the menu entirely.
  */
-const listSourceProfilesInDirectory = Effect.fnUntraced(function* (
+export const listSourceProfiles = Effect.fn("BrowserImportSources.listSourceProfiles")(function* (
   definition: BrowserImportSourceDefinition,
   context: BrowserImportPathContext,
 ): Effect.fn.Return<ReadonlyArray<BrowserImportSourceProfile>, never, FileSystem.FileSystem> {
@@ -491,13 +434,12 @@ const listSourceProfilesInDirectory = Effect.fnUntraced(function* (
     // No usable `profiles.ini`, so fall back to scanning the directory the
     // profiles actually live in, keeping only the ones a cookie database
     // proves were launched.
-    const fallbackDirectory =
-      context.platform === "linux" ? root : context.path.join(root, "Profiles");
+    const fallbackDirectory = context.path.join(root, "Profiles");
     const scanned = yield* fileSystem
       .readDirectory(fallbackDirectory)
       .pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<string>));
     const found = yield* Effect.forEach(scanned, (entry) => {
-      const directory = context.platform === "linux" ? entry : context.path.join("Profiles", entry);
+      const directory = context.path.join("Profiles", entry);
       return resolveCookieDatabase(definition, context, directory).pipe(
         Effect.map((database) => (database === undefined ? undefined : { directory, name: entry })),
       );
@@ -542,41 +484,6 @@ const listSourceProfilesInDirectory = Effect.fnUntraced(function* (
     context,
     found.filter((profile) => profile !== undefined),
   );
-});
-
-/**
- * Include Firefox's Snap home alongside its native home. Snap profiles use
- * absolute directories so cookie reads and lock checks keep pointing at the
- * installation they came from, even when both installs use the same name.
- */
-export const listSourceProfiles = Effect.fn("BrowserImportSources.listSourceProfiles")(function* (
-  definition: BrowserImportSourceDefinition,
-  context: BrowserImportPathContext,
-): Effect.fn.Return<ReadonlyArray<BrowserImportSourceProfile>, never, FileSystem.FileSystem> {
-  if (definition.engine !== "firefox" || context.platform !== "linux") {
-    return yield* listSourceProfilesInDirectory(definition, context);
-  }
-
-  const root = definition.userDataDirectory(context);
-  if (root === undefined) return [];
-  const roots = [
-    root,
-    context.path.join(context.home, "snap", "firefox", "common", ".mozilla", "firefox"),
-  ];
-  const profiles = new Map<string, BrowserImportSourceProfile>();
-  for (const directory of roots) {
-    const found = yield* listSourceProfilesInDirectory(
-      { ...definition, userDataDirectory: () => directory },
-      context,
-    );
-    for (const profile of found) {
-      const absolute = context.path.resolve(directory, profile.directory);
-      if (!profiles.has(absolute)) {
-        profiles.set(absolute, directory === root ? profile : { ...profile, directory: absolute });
-      }
-    }
-  }
-  return [...profiles.values()];
 });
 
 /**
@@ -634,79 +541,6 @@ export const chromiumSingletonLockIsHeld = Effect.fnUntraced(function* (
   // A PID is meaningful only on this host. A foreign hostname can come from a
   // shared home directory, and cannot safely be declared stale from here.
   if (host !== currentHost) return true;
-  return yield* isProcessAlive(pid);
-});
-
-/** Windows sharing and lock violations are translated by libuv to `Busy`. */
-export const isWindowsLockHeldError = (error: PlatformError.PlatformError): boolean =>
-  error.reason._tag === "Busy";
-
-/**
- * Whether a Windows `parent.lock` is actually held by a running process. It
- * is opened with no sharing, so it persists on disk after the process exits
- * and `stat` always succeeds; only trying to open it for write reveals an
- * active holder, which surfaces as `Busy`.
- */
-const windowsLockIsHeld = Effect.fnUntraced(function* (lockPath: string) {
-  // Permission failures are distinct: they do not prove a browser owns the
-  // lock, so they must not hide the source as running.
-  const fileSystem = yield* FileSystem.FileSystem;
-  return yield* fileSystem.open(lockPath, { flag: "r+" }).pipe(
-    Effect.as(false),
-    Effect.catchIf(isWindowsLockHeldError, () => Effect.succeed(true)),
-    Effect.orElseSucceed(() => false),
-    Effect.scoped,
-  );
-});
-
-type WindowsLockProbe = (path: string) => Effect.Effect<boolean, never, FileSystem.FileSystem>;
-
-/**
- * Chromium does not create its POSIX `SingletonLock` symlink on Windows. The
- * live cookie database is opened without sharing instead, so probing each
- * profile's current jar is the reliable running signal there.
- */
-export const windowsChromiumCookiesAreHeld = Effect.fnUntraced(function* (
-  definition: BrowserImportSourceDefinition,
-  context: BrowserImportPathContext,
-  lockIsHeld: WindowsLockProbe = windowsLockIsHeld,
-) {
-  const profiles = yield* listSourceProfiles(definition, context);
-  const held = yield* Effect.forEach(profiles, (profile) =>
-    resolveCookieDatabase(definition, context, profile.directory).pipe(
-      Effect.flatMap((database) =>
-        database === undefined ? Effect.succeed(false) : lockIsHeld(database),
-      ),
-    ),
-  );
-  return held.some(Boolean);
-});
-
-/**
- * Whether a Firefox `lock` symlink's `<ip>:[+]<pid>` target still names a
- * live owner. Firefox writes this symlink beside the profile while it runs and
- * unlinks it on a clean exit, so a dangling one is either live or a crash.
- */
-export const firefoxSymlinkLockIsHeld = Effect.fnUntraced(function* (
-  target: string,
-  localAddresses: ReadonlySet<string>,
-  isProcessAlive: ProcessLivenessProbe,
-) {
-  const separator = target.lastIndexOf(":");
-  if (separator < 0) return true;
-  // The owner half is whatever Firefox's resolver returned for the machine's
-  // hostname — 127.0.0.1 when the lookup fails, but often 127.0.1.1 or a LAN
-  // address — so a pid is only meaningful when that address is one of ours.
-  // A shared (NFS) profile locked from another machine names a foreign
-  // address whose pid cannot be probed here, nor could a reused local pid
-  // vouch for it, so it stays conservatively held.
-  const owner = target.slice(0, separator);
-  if (!localAddresses.has(owner)) return true;
-  // A `+` marks an fcntl-holding owner; the pid follows either way.
-  const pidText = target.slice(separator + 1).replace(/^\+/, "");
-  if (!/^\d+$/.test(pidText)) return true;
-  const pid = Number(pidText);
-  if (!Number.isSafeInteger(pid) || pid <= 0) return true;
   return yield* isProcessAlive(pid);
 });
 
@@ -782,35 +616,17 @@ export const posixLockIsHeld = Effect.fnUntraced(function* (
 /**
  * Whether Firefox holds a profile.
  *
- * Firefox leaves two kinds of lock behind, and they mean different things.
- * On Linux the `lock` symlink (target `<ip>:+<pid>`) is removed on a clean
- * exit, so its presence is evidence — provided the pid it names is alive. But
- * `.parentlock` (macOS/Linux) and `parent.lock` (Windows) are regular files
- * held with fcntl or a Windows handle and are *deliberately left on disk*
- * after exit, as a last-used marker; treating them as proof of a running
- * browser blocks every import after Firefox has been used once. On POSIX the
- * fcntl lock itself is the truth, and macOS in particular writes nothing else
- * (no symlink, no pid), so `.parentlock` is probed for the kernel lock. On
- * Windows the held handle denies our open, which `windowsLockIsHeld` reads as `Busy`.
+ * `.parentlock` is a regular file held with fcntl and *deliberately left on
+ * disk* after exit, as a last-used marker; treating its presence as proof of a
+ * running browser would block every import after Firefox has been used once.
+ * The fcntl lock itself is the truth, and macOS writes nothing else — no
+ * symlink, no pid — so `.parentlock` is probed for the kernel lock.
  */
 const firefoxProfileIsHeld = Effect.fnUntraced(function* (
   directory: string,
   context: BrowserImportPathContext,
-  // Resolved once by the caller: it involves a DNS lookup of the hostname and
-  // is the same for every profile.
-  localAddresses: ReadonlySet<string>,
 ) {
   const fileSystem = yield* FileSystem.FileSystem;
-  if (context.platform === "win32") {
-    return yield* windowsLockIsHeld(context.path.join(directory, "parent.lock"));
-  }
-  // Linux additionally writes the `lock` symlink; a live pid there settles it
-  // without spawning anything.
-  const symlinkHeld = yield* fileSystem.readLink(context.path.join(directory, "lock")).pipe(
-    Effect.flatMap((target) => firefoxSymlinkLockIsHeld(target, localAddresses, processIsAlive)),
-    Effect.orElseSucceed(() => false),
-  );
-  if (symlinkHeld) return true;
   const parentLock = context.path.join(directory, ".parentlock");
   const present = yield* fileSystem.stat(parentLock).pipe(
     Effect.map((info) => info.type === "File"),
@@ -836,16 +652,11 @@ export const isSourceRunning = Effect.fn("BrowserImportSources.isSourceRunning")
   // Safari keeps no lock and writes its jar atomically, so a running instance
   // is not a hazard there.
   //
-  // Chromium exposes its lock through the cookie jar on Windows and through a
-  // user-data SingletonLock on POSIX. Firefox keeps its locks inside each
-  // profile under three names across platforms (`lock` on macOS and Linux,
-  // `.parentlock` beside it, `parent.lock` on Windows). Looking for Firefox's
-  // at the root finds nothing and reports a running browser as importable.
+  // Chromium exposes its lock through a user-data SingletonLock. Firefox keeps
+  // its `.parentlock` inside each profile, so looking for it at the root finds
+  // nothing and reports a running browser as importable.
   if (definition.engine === "safari") return false;
   if (definition.engine !== "firefox") {
-    if (context.platform === "win32") {
-      return yield* windowsChromiumCookiesAreHeld(definition, context);
-    }
     const currentHost = yield* HostProcessHostname;
     const lock = context.path.join(root, "SingletonLock");
     return yield* fileSystem.readLink(lock).pipe(
@@ -855,14 +666,11 @@ export const isSourceRunning = Effect.fn("BrowserImportSources.isSourceRunning")
   }
 
   const profiles = yield* listSourceProfiles(definition, context);
-  // Only the Linux `lock` symlink names an address, so Windows skips the lookup.
-  const localAddresses: ReadonlySet<string> =
-    context.platform === "win32" ? new Set() : yield* yield* HostProcessAddresses;
   const found = yield* Effect.forEach(profiles, (profile) => {
     const directory = context.path.isAbsolute(profile.directory)
       ? profile.directory
       : context.path.join(root, profile.directory);
-    return firefoxProfileIsHeld(directory, context, localAddresses);
+    return firefoxProfileIsHeld(directory, context);
   });
   return found.some(Boolean);
 });

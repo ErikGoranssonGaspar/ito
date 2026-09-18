@@ -17,7 +17,6 @@ it.effect("reports an unavailable keychain when the macOS binding cannot load", 
       () => import("./ChromiumKeys.ts"),
     );
     const error = yield* resolveChromiumKeys({
-      platform: "darwin",
       keychainService: "Chrome Safe Storage",
       keychainAccount: "Chrome",
     }).pipe(Effect.flip);

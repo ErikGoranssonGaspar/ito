@@ -8,7 +8,7 @@ import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as SqlClient from "effect/unstable/sql/SqlClient";
 
-import { decryptChromiumValue, readChromiumCookieDatabase } from "./ChromiumCookies.ts";
+import { readChromiumCookieDatabase } from "./ChromiumCookies.ts";
 import { cookieScope } from "./CookieDatabase.ts";
 
 const encryptChromium = (
@@ -22,13 +22,6 @@ const encryptChromium = (
 
 const encryptV10 = (value: string | Buffer, key: Buffer): Uint8Array =>
   encryptChromium("v10", value, key);
-
-const encryptWindowsV10 = (value: string | Buffer, key: Buffer): Uint8Array => {
-  const nonce = Buffer.from("0123456789ab");
-  const cipher = NodeCrypto.createCipheriv("aes-256-gcm", key, nonce);
-  const encrypted = Buffer.concat([cipher.update(value), cipher.final()]);
-  return Buffer.concat([Buffer.from("v10"), nonce, encrypted, cipher.getAuthTag()]);
-};
 
 describe("cookieScope", () => {
   it("keeps a host-only cookie host-only", () => {
@@ -65,31 +58,6 @@ describe("cookieScope", () => {
 });
 
 describe("readChromiumCookieDatabase", () => {
-  it("decrypts Windows v10 AES-GCM records and rejects app-bound v20 records", () => {
-    const key = Buffer.from("0123456789abcdef0123456789abcdef");
-    const host = ".example.test";
-    const bound = Buffer.concat([
-      NodeCrypto.createHash("sha256").update(host).digest(),
-      Buffer.from("windows value"),
-    ]);
-
-    expect(
-      decryptChromiumValue(encryptWindowsV10(bound, key), { gcmV10: key }, host, 24, "win32"),
-    ).toBe("windows value");
-    expect(
-      decryptChromiumValue(Buffer.from("v20app-bound"), { gcmV10: key }, host, 24, "win32"),
-    ).toBeNull();
-    expect(
-      decryptChromiumValue(
-        encryptWindowsV10(bound, Buffer.alloc(32, 1)),
-        { gcmV10: key },
-        host,
-        24,
-        "win32",
-      ),
-    ).toBeNull();
-  });
-
   it.effect("reads plaintext, encrypted, and genuinely empty cookie values", () =>
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
@@ -131,7 +99,7 @@ describe("readChromiumCookieDatabase", () => {
         `;
       }).pipe(Effect.provide(NodeSqliteClient.layer({ filename })));
 
-      const result = yield* readChromiumCookieDatabase(filename, { cbcV10: key }, "darwin");
+      const result = yield* readChromiumCookieDatabase(filename, { cbcV10: key });
 
       expect(result.undecryptable).toBe(0);
       expect(result.cookies.map(({ name, value }) => ({ name, value }))).toEqual([
@@ -173,7 +141,7 @@ describe("readChromiumCookieDatabase", () => {
           ('short.example', 'short', '', ${encryptV10("short value", key)}, '/', 0, 1, 0, 0)`;
       }).pipe(Effect.provide(NodeSqliteClient.layer({ filename })));
 
-      const result = yield* readChromiumCookieDatabase(filename, { cbcV10: key }, "darwin");
+      const result = yield* readChromiumCookieDatabase(filename, { cbcV10: key });
 
       expect(result.cookies.map(({ name, value }) => ({ name, value }))).toEqual([
         { name: "valid", value: "kept" },
@@ -209,7 +177,7 @@ describe("readChromiumCookieDatabase", () => {
           ('legacy.example', 'legacy', '', ${encryptV10(value, key)}, '/', 0, 0, 0, 0)`;
       }).pipe(Effect.provide(NodeSqliteClient.layer({ filename })));
 
-      const result = yield* readChromiumCookieDatabase(filename, { cbcV10: key }, "darwin");
+      const result = yield* readChromiumCookieDatabase(filename, { cbcV10: key });
       expect(result.cookies[0]?.value).toBe(value);
       expect(result.undecryptable).toBe(0);
     }).pipe(Effect.provide(NodeServices.layer), Effect.scoped),
@@ -229,11 +197,9 @@ describe("readChromiumCookieDatabase", () => {
         yield* sql`insert into meta values ('version', 'not-a-version')`;
       }).pipe(Effect.provide(NodeSqliteClient.layer({ filename })));
 
-      const error = yield* readChromiumCookieDatabase(
-        filename,
-        { cbcV10: Buffer.from("0123456789abcdef") },
-        "darwin",
-      ).pipe(Effect.flip);
+      const error = yield* readChromiumCookieDatabase(filename, {
+        cbcV10: Buffer.from("0123456789abcdef"),
+      }).pipe(Effect.flip);
 
       expect(error._tag).toBe("SchemaError");
     }).pipe(Effect.provide(NodeServices.layer), Effect.scoped),
@@ -265,7 +231,7 @@ describe("readChromiumCookieDatabase", () => {
       }).pipe(Effect.provide(NodeSqliteClient.layer({ filename })));
 
       // macOS Chromium returns unprefixed legacy data as-is.
-      const mac = yield* readChromiumCookieDatabase(filename, { cbcV10: key }, "darwin");
+      const mac = yield* readChromiumCookieDatabase(filename, { cbcV10: key });
 
       expect(mac.cookies[0]?.value).toBe("legacy cleartext");
       expect(mac.undecryptable).toBe(0);
@@ -315,8 +281,8 @@ describe("readChromiumCookieDatabase", () => {
           ('partitioned.example', 'partitioned', 'must skip', ${new Uint8Array()}, '/', 0, 1, 0, 0, 'https://top.example')`;
       }).pipe(Effect.provide(NodeSqliteClient.layer({ filename: chipsFilename })));
 
-      const legacy = yield* readChromiumCookieDatabase(legacyFilename, { cbcV10: key }, "darwin");
-      const chips = yield* readChromiumCookieDatabase(chipsFilename, { cbcV10: key }, "darwin");
+      const legacy = yield* readChromiumCookieDatabase(legacyFilename, { cbcV10: key });
+      const chips = yield* readChromiumCookieDatabase(chipsFilename, { cbcV10: key });
 
       expect(legacy.cookies.map(({ name }) => name)).toEqual(["legacy"]);
       expect(legacy.undecryptable).toBe(0);

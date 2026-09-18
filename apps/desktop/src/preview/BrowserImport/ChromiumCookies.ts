@@ -26,7 +26,6 @@ import { ChildProcessSpawner } from "effect/unstable/process";
 import {
   ChromiumKeyError,
   ChromiumKeyFailure,
-  readWindowsKey,
   resolveChromiumKeys,
   type ChromiumKeyMaterial,
 } from "./ChromiumKeys.ts";
@@ -40,8 +39,6 @@ import {
 
 /** OSCrypt's CBC mode uses a fixed IV of 16 spaces rather than a per-record one. */
 const AES_CBC_IV = Buffer.alloc(16, 0x20);
-const AES_GCM_NONCE_LENGTH = 12;
-const AES_GCM_TAG_LENGTH = 16;
 
 /**
  * Every way the read can fail: the key failures, plus the ones this module
@@ -154,66 +151,32 @@ const decryptCbc = (
   }
 };
 
-const decryptGcm = (
-  payload: Buffer,
-  key: Buffer,
-  domain: string,
-  schemaVersion: number,
-): string | null => {
-  if (payload.length < AES_GCM_NONCE_LENGTH + AES_GCM_TAG_LENGTH) return null;
-  try {
-    const nonce = payload.subarray(0, AES_GCM_NONCE_LENGTH);
-    const ciphertext = payload.subarray(AES_GCM_NONCE_LENGTH, -AES_GCM_TAG_LENGTH);
-    const tag = payload.subarray(-AES_GCM_TAG_LENGTH);
-    const decipher = NodeCrypto.createDecipheriv("aes-256-gcm", key, nonce);
-    decipher.setAuthTag(tag);
-    const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-    return stripDomainBinding(plaintext, domain, schemaVersion)?.toString("utf8") ?? null;
-  } catch {
-    return null;
-  }
-};
-
 /**
  * Decrypts one stored value, choosing the scheme from its prefix. Returns null
- * when no key covers that scheme — including Windows' app-bound `v20`, which
- * this build has no key for at all.
+ * when no key covers that scheme.
  */
 export function decryptChromiumValue(
   encrypted: Uint8Array,
   keys: ChromiumKeyMaterial,
   domain: string,
   schemaVersion = 23,
-  platform: NodeJS.Platform = "darwin",
 ): string | null {
   const buffer = Buffer.from(encrypted);
   if (buffer.length === 0) return "";
   const prefix = buffer.subarray(0, 3).toString("latin1");
   const payload = buffer.subarray(3);
 
-  // Windows' legacy v10 format is AES-256-GCM. App-bound records use v20 and
-  // intentionally have no key here, so they fall through as undecryptable.
-  if (platform === "win32") {
-    return prefix === "v10" && keys.gcmV10
-      ? decryptGcm(payload, keys.gcmV10, domain, schemaVersion)
-      : null;
-  }
-
   if (prefix === "v10") {
     if (!keys.cbcV10) return null;
     return decryptCbc(payload, keys.cbcV10, domain, schemaVersion);
   }
-  // On macOS, unversioned values are legacy cleartext. Windows app-bound
-  // records must remain undecryptable.
-  if (platform === "darwin") {
-    return stripDomainBinding(buffer, domain, schemaVersion)?.toString("utf8") ?? null;
-  }
-  return null;
+  // Unversioned values are legacy cleartext.
+  return stripDomainBinding(buffer, domain, schemaVersion)?.toString("utf8") ?? null;
 }
 
 /** Reads and decodes one snapshotted Chromium cookie database. */
 export const readChromiumCookieDatabase = Effect.fn("ChromiumCookies.readChromiumCookieDatabase")(
-  function* (snapshotPath: string, keys: ChromiumKeyMaterial, platform: NodeJS.Platform) {
+  function* (snapshotPath: string, keys: ChromiumKeyMaterial) {
     const result = yield* Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
       const schemaVersion = yield* sql`select value from meta where key = 'version' limit 1`.pipe(
@@ -243,13 +206,7 @@ export const readChromiumCookieDatabase = Effect.fn("ChromiumCookies.readChromiu
       const value =
         row.encrypted_value.length === 0
           ? row.value
-          : decryptChromiumValue(
-              row.encrypted_value,
-              keys,
-              row.host_key,
-              result.schemaVersion,
-              platform,
-            );
+          : decryptChromiumValue(row.encrypted_value, keys, row.host_key, result.schemaVersion);
       if (value === null) {
         undecryptable += 1;
         undecryptableHosts.add(bareHost(row.host_key));
@@ -281,9 +238,6 @@ export interface ChromiumCookieSource {
   readonly cookieDatabasePath: string;
   readonly keychainService: string | undefined;
   readonly keychainAccount: string | undefined;
-  readonly windowsLocalStatePath?: string;
-  /** Supplied by the caller from `HostProcessPlatform` rather than read here. */
-  readonly platform: NodeJS.Platform;
 }
 
 export const readChromiumCookies = Effect.fn("ChromiumCookies.readChromiumCookies")(function* (
@@ -293,15 +247,10 @@ export const readChromiumCookies = Effect.fn("ChromiumCookies.readChromiumCookie
   ChromiumCookieReadError,
   FileSystem.FileSystem | Path.Path | Scope.Scope | ChildProcessSpawner.ChildProcessSpawner
 > {
-  const keys = yield* (
-    source.platform === "win32" && source.windowsLocalStatePath
-      ? readWindowsKey(source.windowsLocalStatePath).pipe(Effect.map((gcmV10) => ({ gcmV10 })))
-      : resolveChromiumKeys({
-          platform: source.platform,
-          keychainService: source.keychainService,
-          keychainAccount: source.keychainAccount,
-        })
-  ).pipe(
+  const keys = yield* resolveChromiumKeys({
+    keychainService: source.keychainService,
+    keychainAccount: source.keychainAccount,
+  }).pipe(
     Effect.mapError(
       (cause: ChromiumKeyError) =>
         new ChromiumCookieReadError({
@@ -323,7 +272,7 @@ export const readChromiumCookies = Effect.fn("ChromiumCookies.readChromiumCookie
     ),
   );
 
-  return yield* readChromiumCookieDatabase(snapshotPath, keys, source.platform).pipe(
+  return yield* readChromiumCookieDatabase(snapshotPath, keys).pipe(
     Effect.mapError(
       (cause) =>
         new ChromiumCookieReadError({
