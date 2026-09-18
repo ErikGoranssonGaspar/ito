@@ -17,7 +17,6 @@ const defaultInput = {
   appPath: "/Applications/T3 Code.app/Contents/Resources/app.asar",
   isPackaged: false,
   resourcesPath: "/Applications/T3 Code.app/Contents/Resources",
-  runningUnderArm64Translation: false,
 } satisfies DesktopEnvironment.MakeDesktopEnvironmentInput;
 
 const makeEnvironmentLayer = (

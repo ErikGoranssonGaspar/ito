@@ -71,7 +71,6 @@ function makeEnvironmentLayer(
     appPath: options?.appPath ?? "/repo",
     isPackaged: options?.isPackaged ?? true,
     resourcesPath: options?.resourcesPath ?? "/missing/resources",
-    runningUnderArm64Translation: false,
   }).pipe(
     Layer.provide(
       Layer.mergeAll(

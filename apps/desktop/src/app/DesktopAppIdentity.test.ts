@@ -24,7 +24,6 @@ const defaultEnvironmentInput = {
   appPath: "/Applications/T3 Code.app/Contents/Resources/app.asar",
   isPackaged: true,
   resourcesPath: "/Applications/T3 Code.app/Contents/Resources",
-  runningUnderArm64Translation: false,
 } satisfies DesktopEnvironment.MakeDesktopEnvironmentInput;
 
 type TestEnvironmentInput = Partial<DesktopEnvironment.MakeDesktopEnvironmentInput> & {

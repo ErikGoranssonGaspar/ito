@@ -237,11 +237,7 @@ export class ExternalLauncher extends Context.Service<
 
 const resolveEditorLaunch = Effect.fn("resolveEditorLaunch")(function* (
   input: LaunchEditorInput,
-): Effect.fn.Return<
-  EditorLaunch,
-  ExternalLauncherError,
-  FileSystem.FileSystem | Path.Path
-> {
+): Effect.fn.Return<EditorLaunch, ExternalLauncherError, FileSystem.FileSystem | Path.Path> {
   const env = yield* readCommandLookupEnv;
   yield* Effect.annotateCurrentSpan({
     "externalLauncher.editor": input.editor,

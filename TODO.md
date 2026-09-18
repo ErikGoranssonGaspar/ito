@@ -17,12 +17,16 @@ This tracks the reduction of the T3 Code fork. The longer-term product direction
 - [x] Remove the Linux browser-secret helper and Chromium cookie import path from the desktop build.
 - [x] Remove the GNOME, KDE, Hyprland, Niri, and xdg-portal screen-capture backends, the
       Windows capture overlay and region worker, and their setup UI, leaving macOS capture.
+- [x] Remove the desktop auto-updater: electron-updater, update channels and release notes,
+      the update IPC and sidebar/settings update UI, and the server's desktop-update bridge.
 - [x] Preserve this checkout's `.t3` data and settings.
 
 ## Next cleanup passes
 
 - [ ] Trace and remove remaining T3 account, relay, remote connection, and hosted-browser code shared with the desktop renderer and server.
-- [ ] Remove remaining Windows, Linux, WSL, updater, and distribution code from retained packages.
+- [ ] Remove remaining Windows, Linux, and WSL code from retained packages.
+- [ ] Remove the server's own self-update and service-launcher distribution paths, which now
+      only report that the desktop app manages this server.
 - [ ] Prune dependencies, license overrides, tests, and documentation made obsolete by those cuts.
 - [ ] After each substantial cut, run focused checks and verify the macOS desktop app still starts.
 - [ ] Once the cleanup is finished, review `AGENTS.md` and the related agent setup files in `.agents` with the owner. Keep useful instructions and skills, and remove or update T3-era assumptions for ito.

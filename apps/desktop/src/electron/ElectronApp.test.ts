@@ -109,7 +109,6 @@ describe("ElectronApp", () => {
         appPath: "/app",
         isPackaged: true,
         resourcesPath: process.resourcesPath,
-        runningUnderArm64Translation: false,
       });
     }).pipe(Effect.provide(ElectronApp.layer)),
   );

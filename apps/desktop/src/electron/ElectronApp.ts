@@ -11,7 +11,6 @@ export interface ElectronAppMetadata {
   readonly appPath: string;
   readonly isPackaged: boolean;
   readonly resourcesPath: string;
-  readonly runningUnderArm64Translation: boolean;
 }
 
 export class ElectronAppMetadataReadError extends Schema.TaggedError<ElectronAppMetadataReadError>()(
@@ -123,7 +122,6 @@ export const make = ElectronApp.of({
       appPath,
       isPackaged: Electron.app.isPackaged,
       resourcesPath: process.resourcesPath,
-      runningUnderArm64Translation: Electron.app.runningUnderARM64Translation === true,
     };
   }),
   name: Effect.sync(() => Electron.app.name),

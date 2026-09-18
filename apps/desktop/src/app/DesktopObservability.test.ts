@@ -46,7 +46,6 @@ const environmentInput = (baseDir: string) =>
     appPath: "/repo",
     isPackaged: false,
     resourcesPath: "/repo/resources",
-    runningUnderArm64Translation: false,
   }) satisfies DesktopEnvironment.MakeDesktopEnvironmentInput;
 
 const makeEnvironmentLayer = (baseDir: string, isDevelopment = true) =>

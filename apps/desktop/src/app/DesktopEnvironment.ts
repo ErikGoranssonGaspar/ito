@@ -1,9 +1,4 @@
-import type {
-  DesktopAppBranding,
-  DesktopAppStageLabel,
-  DesktopRuntimeArch,
-  DesktopRuntimeInfo,
-} from "@t3tools/contracts";
+import type { DesktopAppBranding, DesktopAppStageLabel } from "@t3tools/contracts";
 import * as Config from "effect/Config";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -14,7 +9,6 @@ import * as Path from "effect/Path";
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
 import * as DesktopConfig from "./DesktopConfig.ts";
 import { resolveDesktopBaseDir, resolveDesktopStateDir } from "./DesktopStatePaths.ts";
-import { isNightlyDesktopVersion } from "../updates/updateChannels.ts";
 import type { OtlpProtocol } from "@t3tools/shared/observability";
 
 export interface MakeDesktopEnvironmentInput {
@@ -26,7 +20,6 @@ export interface MakeDesktopEnvironmentInput {
   readonly appPath: string;
   readonly isPackaged: boolean;
   readonly resourcesPath: string;
-  readonly runningUnderArm64Translation: boolean;
 }
 
 export class DesktopEnvironment extends Context.Service<
@@ -65,7 +58,6 @@ export class DesktopEnvironment extends Context.Service<
     readonly clientAssetsDir: string;
     readonly backendCwd: string;
     readonly preloadPath: string;
-    readonly appUpdateYmlPath: string;
     readonly devServerUrl: Option.Option<URL>;
     readonly devRemoteT3ServerEntryPath: Option.Option<string>;
     readonly configuredBackendPort: Option.Option<number>;
@@ -83,7 +75,6 @@ export class DesktopEnvironment extends Context.Service<
     readonly userDataDirName: string;
     readonly legacyUserDataDirName: string;
     readonly defaultDesktopSettings: DesktopAppSettings.DesktopSettings;
-    readonly runtimeInfo: DesktopRuntimeInfo;
     readonly resolvePickFolderDefaultPath: (rawOptions: unknown) => Option.Option<string>;
     readonly resolveResourcePathCandidates: (fileName: string) => readonly string[];
   }
@@ -99,7 +90,7 @@ function resolveDesktopAppStageLabel(input: {
     return "Dev";
   }
 
-  return isNightlyDesktopVersion(input.appVersion) ? "Nightly" : "Alpha";
+  return "Alpha";
 }
 
 export function resolveDesktopAppBranding(input: {
@@ -111,36 +102,6 @@ export function resolveDesktopAppBranding(input: {
     baseName: APP_BASE_NAME,
     stageLabel,
     displayName: `${APP_BASE_NAME} (${stageLabel})`,
-  };
-}
-
-function normalizeDesktopArch(arch: string): DesktopRuntimeArch {
-  if (arch === "arm64") return "arm64";
-  if (arch === "x64") return "x64";
-  return "other";
-}
-
-function resolveDesktopRuntimeInfo(input: {
-  readonly platform: NodeJS.Platform;
-  readonly processArch: string;
-  readonly runningUnderArm64Translation: boolean;
-}): DesktopRuntimeInfo {
-  const appArch = normalizeDesktopArch(input.processArch);
-
-  if (input.platform !== "darwin") {
-    return {
-      hostArch: appArch,
-      appArch,
-      runningUnderArm64Translation: false,
-    };
-  }
-
-  const hostArch = appArch === "arm64" || input.runningUnderArm64Translation ? "arm64" : appArch;
-
-  return {
-    hostArch,
-    appArch,
-    runningUnderArm64Translation: input.runningUnderArm64Translation,
   };
 }
 
@@ -217,9 +178,6 @@ const make = Effect.fn("desktop.environment.make")(function* (
     clientAssetsDir: path.join(serverRoot, "apps/server/dist/client"),
     backendCwd: input.isPackaged ? homeDirectory : appRoot,
     preloadPath: path.join(input.dirname, "preload.cjs"),
-    appUpdateYmlPath: input.isPackaged
-      ? path.join(resourcesPath, "app-update.yml")
-      : path.join(input.appPath, "dev-app-update.yml"),
     devServerUrl,
     devRemoteT3ServerEntryPath: config.devRemoteT3ServerEntryPath,
     configuredBackendPort: config.configuredBackendPort,
@@ -240,12 +198,7 @@ const make = Effect.fn("desktop.environment.make")(function* (
     appImagePath: config.appImagePath,
     userDataDirName,
     legacyUserDataDirName,
-    defaultDesktopSettings: DesktopAppSettings.resolveDefaultDesktopSettings(input.appVersion),
-    runtimeInfo: resolveDesktopRuntimeInfo({
-      platform: input.platform,
-      processArch: input.processArch,
-      runningUnderArm64Translation: input.runningUnderArm64Translation,
-    }),
+    defaultDesktopSettings: DesktopAppSettings.resolveDefaultDesktopSettings(),
     resolvePickFolderDefaultPath: (rawOptions) => {
       if (typeof rawOptions !== "object" || rawOptions === null) {
         return Option.none();

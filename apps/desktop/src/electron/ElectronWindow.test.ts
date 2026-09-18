@@ -6,12 +6,14 @@ import * as Layer from "effect/Layer";
 import type * as Electron from "electron";
 import { beforeEach, vi } from "vite-plus/test";
 
-const { appFocusMock, browserWindowMock, getAllWindowsMock, getFocusedWindowMock } = vi.hoisted(() => ({
-  appFocusMock: vi.fn(),
-  browserWindowMock: vi.fn(function BrowserWindowMock() {}),
-  getAllWindowsMock: vi.fn(),
-  getFocusedWindowMock: vi.fn(),
-}));
+const { appFocusMock, browserWindowMock, getAllWindowsMock, getFocusedWindowMock } = vi.hoisted(
+  () => ({
+    appFocusMock: vi.fn(),
+    browserWindowMock: vi.fn(function BrowserWindowMock() {}),
+    getAllWindowsMock: vi.fn(),
+    getFocusedWindowMock: vi.fn(),
+  }),
+);
 
 vi.mock("electron", () => ({
   app: { focus: appFocusMock },

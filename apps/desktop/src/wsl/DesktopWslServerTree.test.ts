@@ -31,7 +31,6 @@ const environmentLayer = (input: {
     appPath: "/repo",
     isPackaged: input.isPackaged ?? true,
     resourcesPath: input.resourcesPath,
-    runningUnderArm64Translation: false,
   }).pipe(
     Layer.provide(
       Layer.mergeAll(
