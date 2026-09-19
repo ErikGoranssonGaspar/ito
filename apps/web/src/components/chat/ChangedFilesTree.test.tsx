@@ -24,6 +24,32 @@ describe("ChangedFilesCard", () => {
     expect(markup).not.toContain("1 changed files");
   });
 
+  it("renders only the summary line when collapsible and closed", () => {
+    const markup = renderToStaticMarkup(
+      <ChangedFilesCard
+        turnId={TurnId.make("turn-1")}
+        files={[
+          { path: "apps/web/src/App.tsx", kind: "modified", additions: 2, deletions: 1 },
+          { path: "README.md", kind: "modified", additions: 3, deletions: 0 },
+        ]}
+        allDirectoriesExpanded
+        resolvedTheme="light"
+        collapsible
+        open={false}
+        onToggleOpen={() => {}}
+        onToggleAllDirectories={() => {}}
+        onOpenTurnDiff={() => {}}
+      />,
+    );
+
+    expect(markup).toContain('data-changed-files-state="summary"');
+    expect(markup).toContain('aria-label="Show changed files"');
+    expect(markup).toContain("2 changed files");
+    expect(markup).not.toContain("App.tsx");
+    // The full diff stays one click away even with the tree hidden.
+    expect(markup).toContain('aria-label="Open diff"');
+  });
+
   it("shows collapsed folders and root files together", () => {
     const markup = renderToStaticMarkup(
       <ChangedFilesCard

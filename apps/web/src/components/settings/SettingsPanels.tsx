@@ -22,6 +22,7 @@ import {
   DEFAULT_UNIFIED_SETTINGS,
   type DiffLayout,
   type EnvironmentIdentificationMode,
+  type TurnChangedFilesDisplay,
   MAX_APPEARANCE_CONTRAST,
   MAX_CODE_FONT_SIZE,
   MAX_GLASS_OPACITY,
@@ -191,6 +192,12 @@ const DIFF_LAYOUT_LABELS: Record<DiffLayout, string> = {
   split: "Split",
 };
 
+const TURN_CHANGED_FILES_DISPLAY_LABELS: Record<TurnChangedFilesDisplay, string> = {
+  full: "File tree",
+  collapsed: "Summary only",
+  hidden: "Hidden",
+};
+
 const QUIT_CONFIRMATION_MODE_LABELS: Record<QuitConfirmationMode, string> = {
   direct: "Direct",
   hold: "Hold",
@@ -334,6 +341,9 @@ export function useSettingsRestore(onRestored?: () => void) {
         ? ["Diff whitespace changes"]
         : []),
       ...(settings.diffLayout !== DEFAULT_UNIFIED_SETTINGS.diffLayout ? ["Diff layout"] : []),
+      ...(settings.turnChangedFilesDisplay !== DEFAULT_UNIFIED_SETTINGS.turnChangedFilesDisplay
+        ? ["Changed files in chat"]
+        : []),
       ...(settings.proactivePanelsEnabled !== DEFAULT_UNIFIED_SETTINGS.proactivePanelsEnabled
         ? ["Proactive panels"]
         : []),
@@ -417,6 +427,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       settings.diffFilesCollapsed,
       settings.diffIgnoreWhitespace,
       settings.diffLayout,
+      settings.turnChangedFilesDisplay,
       settings.proactivePanelsEnabled,
       settings.environmentIdentificationMode,
       settings.contextWindowMeterEnabled,
@@ -520,6 +531,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       diffFilesCollapsed: DEFAULT_UNIFIED_SETTINGS.diffFilesCollapsed,
       diffIgnoreWhitespace: DEFAULT_UNIFIED_SETTINGS.diffIgnoreWhitespace,
       diffLayout: DEFAULT_UNIFIED_SETTINGS.diffLayout,
+      turnChangedFilesDisplay: DEFAULT_UNIFIED_SETTINGS.turnChangedFilesDisplay,
       proactivePanelsEnabled: DEFAULT_UNIFIED_SETTINGS.proactivePanelsEnabled,
       showSkillsInSlashMenu: DEFAULT_UNIFIED_SETTINGS.showSkillsInSlashMenu,
       composerCollapseOnScroll: DEFAULT_UNIFIED_SETTINGS.composerCollapseOnScroll,
@@ -2288,6 +2300,54 @@ export function GeneralSettingsPanel() {
                 </SelectItem>
                 <SelectItem hideIndicator value="split">
                   {DIFF_LAYOUT_LABELS.split}
+                </SelectItem>
+              </SelectPopup>
+            </Select>
+          }
+        />
+        <SettingsRow
+          {...searchableSetting("changed-files-in-chat")}
+          description="How much of a turn's changed-file list the chat shows. The full diff stays available from the header and the diff panel."
+          resetAction={
+            settings.turnChangedFilesDisplay !==
+            DEFAULT_UNIFIED_SETTINGS.turnChangedFilesDisplay ? (
+              <SettingResetButton
+                label="changed files in chat"
+                onClick={() =>
+                  updateSettings({
+                    turnChangedFilesDisplay: DEFAULT_UNIFIED_SETTINGS.turnChangedFilesDisplay,
+                  })
+                }
+              />
+            ) : null
+          }
+          control={
+            <Select
+              value={settings.turnChangedFilesDisplay}
+              onValueChange={(value) => {
+                if (value === "full" || value === "collapsed" || value === "hidden") {
+                  updateSettings({ turnChangedFilesDisplay: value });
+                }
+              }}
+            >
+              <SelectTrigger
+                size="sm"
+                className="w-full sm:w-40"
+                aria-label="Changed files in chat"
+              >
+                <SelectValue>
+                  {TURN_CHANGED_FILES_DISPLAY_LABELS[settings.turnChangedFilesDisplay]}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectPopup align="end" alignItemWithTrigger={false}>
+                <SelectItem hideIndicator value="full">
+                  {TURN_CHANGED_FILES_DISPLAY_LABELS.full}
+                </SelectItem>
+                <SelectItem hideIndicator value="collapsed">
+                  {TURN_CHANGED_FILES_DISPLAY_LABELS.collapsed}
+                </SelectItem>
+                <SelectItem hideIndicator value="hidden">
+                  {TURN_CHANGED_FILES_DISPLAY_LABELS.hidden}
                 </SelectItem>
               </SelectPopup>
             </Select>

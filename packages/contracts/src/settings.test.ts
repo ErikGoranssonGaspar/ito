@@ -284,6 +284,25 @@ describe("ClientSettings default diff file state", () => {
   });
 });
 
+describe("ClientSettings changed-files display", () => {
+  it("shows the full file tree when nothing is saved", () => {
+    expect(decodeClientSettings({}).turnChangedFilesDisplay).toBe("full");
+  });
+
+  it.each(["full", "collapsed", "hidden"])("round-trips %s", (turnChangedFilesDisplay) => {
+    const settings = decodeClientSettings({ turnChangedFilesDisplay });
+    expect(encodeClientSettings(settings).turnChangedFilesDisplay).toBe(turnChangedFilesDisplay);
+    expect(decodeClientSettingsPatch({ turnChangedFilesDisplay }).turnChangedFilesDisplay).toBe(
+      turnChangedFilesDisplay,
+    );
+  });
+
+  it("rejects unknown display modes", () => {
+    expect(() => decodeClientSettings({ turnChangedFilesDisplay: "tiny" })).toThrow();
+    expect(() => decodeClientSettingsPatch({ turnChangedFilesDisplay: "tiny" })).toThrow();
+  });
+});
+
 describe("ClientSettings diff colors", () => {
   it("keeps red and green for existing settings without a saved palette", () => {
     expect(decodeClientSettings({}).diffColorScheme).toBe("red-green");

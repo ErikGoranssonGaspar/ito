@@ -8,6 +8,7 @@ import { getSyntaxHighlighterPromise } from "../lib/syntaxHighlighting";
 import { GitHubIcon } from "./Icons";
 import { Button } from "./ui/button";
 import { setMarkdownTaskChecked } from "./files/filePreviewMode";
+import { serializeRenderedMarkdownFragment } from "../markdown-clipboard";
 
 vi.mock("@effect/atom-react", () => ({ useAtomValue: () => null }));
 vi.mock("../hooks/useTheme", () => ({ useTheme: () => ({ resolvedTheme: "dark" }) }));
@@ -838,6 +839,157 @@ describe("ChatMarkdown math", () => {
 
       expect(renderedTex(html)).toEqual([tex]);
     }
+  });
+});
+
+/**
+ * Copying rendered math has to read the TeX back out of the MathML annotation
+ * KaTeX keeps beside the glyphs. markdown-clipboard's own suite builds that
+ * annotation by hand, so it would keep passing if KaTeX ever moved it; this
+ * one walks the tree KaTeX actually renders, from markdown source back to
+ * markdown source.
+ */
+describe("copying rendered math", () => {
+  const TEXT_NODE = 3;
+  const ELEMENT_NODE = 1;
+
+  interface RendererNode {
+    readonly type: string;
+    readonly props: Record<string, unknown>;
+    readonly children: ReadonlyArray<RendererNode | string> | null;
+  }
+
+  class DomText {
+    readonly nodeType = TEXT_NODE;
+    readonly childNodes: ReadonlyArray<never> = [];
+
+    constructor(readonly textContent: string) {}
+  }
+
+  /** The slice of Element the markdown serializer actually reaches for. */
+  class DomElement {
+    readonly nodeType = ELEMENT_NODE;
+    readonly childNodes: Array<DomElement | DomText> = [];
+    private readonly classNames: ReadonlyArray<string>;
+    readonly classList = { contains: (name: string) => this.classNames.includes(name) };
+
+    constructor(
+      readonly tagName: string,
+      private readonly attributes: Readonly<Record<string, string>>,
+    ) {
+      this.classNames = (attributes["class"] ?? "").split(/\s+/).filter(Boolean);
+    }
+
+    get localName(): string {
+      return this.tagName.toLowerCase();
+    }
+
+    get textContent(): string {
+      return this.childNodes.map((child) => child.textContent).join("");
+    }
+
+    get children(): ReadonlyArray<DomElement> {
+      return this.childNodes.filter((child): child is DomElement => child instanceof DomElement);
+    }
+
+    getAttribute(name: string): string | null {
+      return this.attributes[name] ?? null;
+    }
+
+    hasAttribute(name: string): boolean {
+      return Object.hasOwn(this.attributes, name);
+    }
+
+    closest(): null {
+      return null;
+    }
+
+    /** Handles `tag`, `[attr]`, and `[attr="value"]`, optionally `:scope >`-bound. */
+    querySelector(selector: string): DomElement | null {
+      const childOnly = selector.startsWith(":scope > ");
+      const target = childOnly ? selector.slice(":scope > ".length) : selector;
+      const parsed = /^([a-z]*)(?:\[([\w-]+)(?:="([^"]*)")?\])?$/i.exec(target);
+      if (!parsed) throw new Error(`Unsupported selector: ${selector}`);
+      const [, tag = "", attribute, value] = parsed;
+      const matches = (element: DomElement): boolean => {
+        if (tag && element.tagName !== tag.toUpperCase()) return false;
+        if (attribute === undefined) return true;
+        const actual = element.getAttribute(attribute);
+        return value === undefined ? actual !== null : actual === value;
+      };
+      const search = (parent: DomElement): DomElement | null => {
+        for (const child of parent.children) {
+          if (matches(child)) return child;
+          if (childOnly) continue;
+          const nested = search(child);
+          if (nested) return nested;
+        }
+        return null;
+      };
+      return search(this);
+    }
+  }
+
+  function attributesOf(props: Record<string, unknown>): Record<string, string> {
+    const attributes: Record<string, string> = {};
+    for (const [name, value] of Object.entries(props)) {
+      if (name === "children" || name === "ref" || name === "key") continue;
+      if (typeof value === "string") attributes[name === "className" ? "class" : name] = value;
+      else if (typeof value === "number") attributes[name] = String(value);
+      else if (value === true) attributes[name] = "true";
+    }
+    return attributes;
+  }
+
+  function toDom(node: RendererNode | string): DomElement | DomText {
+    if (typeof node === "string") return new DomText(node);
+    const element = new DomElement(node.type.toUpperCase(), attributesOf(node.props));
+    for (const child of node.children ?? []) element.childNodes.push(toDom(child));
+    return element;
+  }
+
+  async function copyWholeMessage(text: string): Promise<string> {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    vi.stubGlobal("Node", { TEXT_NODE, ELEMENT_NODE });
+    let renderer: ReactTestRenderer | undefined;
+    try {
+      await act(async () => {
+        renderer = create(<ChatMarkdown cwd="/tmp/project" text={text} />);
+      });
+      const rendered = renderer!.toJSON();
+      if (rendered === null || Array.isArray(rendered)) throw new Error("Expected one root node");
+      return serializeRenderedMarkdownFragment(
+        toDom(rendered as unknown as RendererNode) as unknown as Node,
+      );
+    } finally {
+      if (renderer) await act(async () => renderer!.unmount());
+      vi.unstubAllGlobals();
+    }
+  }
+
+  it("gives back the LaTeX source of a message full of math", async () => {
+    const source = [
+      "Euler: $e^{i\\pi} + 1 = 0$ is **the** identity.",
+      "",
+      "$$",
+      "\\int_0^1 x\\,dx = \\frac{1}{2}",
+      "$$",
+      "",
+      "- Itô isometry: $\\mathbb{E}\\left[\\left(\\int_0^T H_s\\,dW_s\\right)^2\\right]$",
+      "- Quadratic variation: $[W]_t = t$",
+    ].join("\n");
+
+    expect(await copyWholeMessage(source)).toBe(source);
+  });
+
+  it("keeps prose dollars as prose rather than turning them into math", async () => {
+    const source = "It costs $5 and $10, and `$HOME` is unset.";
+
+    expect(await copyWholeMessage(source)).toBe(source);
+  });
+
+  it("gives back the source KaTeX kept for an equation it could not parse", async () => {
+    expect(await copyWholeMessage("Broken: $\\frac{1}$ here")).toBe("Broken: $\\frac{1}$ here");
   });
 });
 

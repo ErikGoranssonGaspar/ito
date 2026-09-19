@@ -330,6 +330,12 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["stacked split side by side unified inline view"],
   },
   {
+    id: "changed-files-in-chat",
+    title: "Changed files in chat",
+    to: "/settings/general",
+    searchTerms: ["git diff card turn summary hide collapse file tree composer"],
+  },
+  {
     id: "proactive-panels",
     title: "Proactive panels",
     to: "/settings/general",

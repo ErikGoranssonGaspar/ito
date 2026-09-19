@@ -287,6 +287,15 @@ export const LoadBalancingWeights = Schema.Record(
 
 export const DiffColorScheme = Schema.Literals(["red-green", "blue-orange"]);
 
+/**
+ * How much of a turn's changed-file tree the timeline shows. Repositories where
+ * the work is not the version history want the card quiet or gone; the diff
+ * stays reachable from the header and the diff panel either way.
+ */
+export const TurnChangedFilesDisplay = Schema.Literals(["full", "collapsed", "hidden"]);
+export type TurnChangedFilesDisplay = typeof TurnChangedFilesDisplay.Type;
+export const DEFAULT_TURN_CHANGED_FILES_DISPLAY: TurnChangedFilesDisplay = "full";
+
 export const ClientSettingsSchema = Schema.Struct({
   notificationMode: NotificationMode.pipe(
     Schema.withDecodingDefault(Effect.succeed("off" as const)),
@@ -359,6 +368,9 @@ export const ClientSettingsSchema = Schema.Struct({
   diffFilesCollapsed: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
   diffIgnoreWhitespace: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
   diffLayout: DiffLayout.pipe(Schema.withDecodingDefault(Effect.succeed(DEFAULT_DIFF_LAYOUT))),
+  turnChangedFilesDisplay: TurnChangedFilesDisplay.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_TURN_CHANGED_FILES_DISPLAY)),
+  ),
   environmentIdentificationMode: EnvironmentIdentificationMode.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE)),
   ),
@@ -1534,6 +1546,7 @@ export const ClientSettingsPatch = Schema.Struct({
   diffFilesCollapsed: Schema.optionalKey(Schema.Boolean),
   diffIgnoreWhitespace: Schema.optionalKey(Schema.Boolean),
   diffLayout: Schema.optionalKey(DiffLayout),
+  turnChangedFilesDisplay: Schema.optionalKey(TurnChangedFilesDisplay),
   environmentIdentificationMode: Schema.optionalKey(EnvironmentIdentificationMode),
   glassOpacity: Schema.optionalKey(GlassOpacity),
   onboardingCompletedAt: Schema.optionalKey(Schema.NullOr(Schema.String)),

@@ -242,7 +242,8 @@ import type { ChatMarkdownContextReference } from "../ChatMarkdown";
 import { useMediaQuery } from "~/hooks/useMediaQuery";
 import { cn } from "~/lib/utils";
 import { useUiStateStore } from "~/uiStateStore";
-import { type TimestampFormat } from "@ito/contracts/settings";
+import { useClientSettings } from "~/hooks/useSettings";
+import { type ClientSettings, type TimestampFormat } from "@ito/contracts/settings";
 import { formatChatTimestampTooltip, formatDayAwareTimestamp } from "../../timestampFormat";
 
 import { SkillInlineText } from "./SkillInlineText";
@@ -3253,6 +3254,9 @@ function WorkGroupToggleTimelineRow({
   );
 }
 
+const selectTurnChangedFilesDisplay = (settings: ClientSettings) =>
+  settings.turnChangedFilesDisplay;
+
 /** Subscribes directly to the UI state store for expand/collapse state,
  *  so toggling re-renders only this component — not the entire list. */
 const AssistantChangedFilesSection = memo(function AssistantChangedFilesSection({
@@ -3266,6 +3270,8 @@ const AssistantChangedFilesSection = memo(function AssistantChangedFilesSection(
   resolvedTheme: "light" | "dark";
   onOpenTurnDiff: (turnId: TurnId, filePath?: string) => void;
 }) {
+  const display = useClientSettings(selectTurnChangedFilesDisplay);
+  if (display === "hidden") return null;
   if (!turnSummary) return null;
   const checkpointFiles = turnSummary.files;
   if (checkpointFiles.length === 0) return null;
@@ -3276,6 +3282,7 @@ const AssistantChangedFilesSection = memo(function AssistantChangedFilesSection(
       checkpointFiles={checkpointFiles}
       routeThreadKey={routeThreadKey}
       resolvedTheme={resolvedTheme}
+      collapsible={display === "collapsed"}
       onOpenTurnDiff={onOpenTurnDiff}
     />
   );
@@ -3288,19 +3295,26 @@ function AssistantChangedFilesSectionInner({
   checkpointFiles,
   routeThreadKey,
   resolvedTheme,
+  collapsible,
   onOpenTurnDiff,
 }: {
   turnSummary: TurnDiffSummary;
   checkpointFiles: TurnDiffSummary["files"];
   routeThreadKey: string;
   resolvedTheme: "light" | "dark";
+  collapsible: boolean;
   onOpenTurnDiff: (turnId: TurnId, filePath?: string) => void;
 }) {
   const persistedExpanded = useUiStateStore(
     (store) => store.threadChangedFilesExpandedById[routeThreadKey]?.[turnSummary.turnId],
   );
   const setExpanded = useUiStateStore((store) => store.setThreadChangedFilesExpanded);
+  const persistedCardOpen = useUiStateStore(
+    (store) => store.threadChangedFilesCardOpenById[routeThreadKey]?.[turnSummary.turnId],
+  );
+  const setCardOpen = useUiStateStore((store) => store.setThreadChangedFilesCardOpen);
   const allDirectoriesExpanded = persistedExpanded ?? false;
+  const cardOpen = persistedCardOpen ?? false;
 
   return (
     <ChangedFilesCard
@@ -3308,6 +3322,9 @@ function AssistantChangedFilesSectionInner({
       files={checkpointFiles}
       allDirectoriesExpanded={allDirectoriesExpanded}
       resolvedTheme={resolvedTheme}
+      collapsible={collapsible}
+      open={cardOpen}
+      onToggleOpen={() => setCardOpen(routeThreadKey, turnSummary.turnId, !cardOpen)}
       onToggleAllDirectories={() =>
         setExpanded(routeThreadKey, turnSummary.turnId, !allDirectoriesExpanded)
       }

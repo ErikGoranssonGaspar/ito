@@ -14,6 +14,7 @@ import {
   setDefaultAdvertisedEndpointKey,
   setProjectExpanded,
   setSidebarProjectScopeKey,
+  setThreadChangedFilesCardOpen,
   setThreadChangedFilesExpanded,
   type UiState,
 } from "./uiStateStore";
@@ -25,6 +26,7 @@ function makeUiState(overrides: Partial<UiState> = {}): UiState {
     sidebarProjectScopeKey: null,
     threadLastVisitedAtById: {},
     threadChangedFilesExpandedById: {},
+    threadChangedFilesCardOpenById: {},
     defaultAdvertisedEndpointKey: null,
     pullRequestMergeMethod: "merge",
     ...overrides,
@@ -138,6 +140,15 @@ describe("uiStateStore pure functions", () => {
     });
   });
 
+  it("keeps the changed-files card open state apart from folder expansion", () => {
+    const threadId = ThreadId.make("thread-1");
+    const opened = setThreadChangedFilesCardOpen(makeUiState(), threadId, "turn-1", true);
+
+    expect(opened.threadChangedFilesCardOpenById).toEqual({ [threadId]: { "turn-1": true } });
+    expect(opened.threadChangedFilesExpandedById).toEqual({});
+    expect(setThreadChangedFilesCardOpen(opened, threadId, "turn-1", true)).toBe(opened);
+  });
+
   it("stores the endpoint preference by stable key", () => {
     const next = setDefaultAdvertisedEndpointKey(makeUiState(), "desktop-core:lan:http");
 
@@ -209,6 +220,7 @@ describe("parsePersistedState", () => {
           "turn-2": true,
         },
       },
+      threadChangedFilesCardOpenById: {},
     });
   });
 
@@ -331,6 +343,7 @@ describe("uiStateStore persistence", () => {
           "turn-2": true,
         },
       },
+      threadChangedFilesCardOpenById: {},
       pullRequestMergeMethod: "merge",
     });
     expect(parsePersistedState(persisted)).toEqual({

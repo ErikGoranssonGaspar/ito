@@ -27,6 +27,11 @@ export const ChangedFilesCard = memo(function ChangedFilesCard(props: {
   files: ReadonlyArray<TurnDiffFileChange>;
   allDirectoriesExpanded: boolean;
   resolvedTheme: "light" | "dark";
+  /** `collapsed` display: the card starts as its summary line and the header
+   *  becomes the disclosure control. */
+  collapsible?: boolean;
+  open?: boolean;
+  onToggleOpen?: () => void;
   onToggleAllDirectories: () => void;
   onOpenTurnDiff: (turnId: TurnId, filePath?: string) => void;
 }) {
@@ -35,36 +40,66 @@ export const ChangedFilesCard = memo(function ChangedFilesCard(props: {
     files,
     allDirectoriesExpanded,
     resolvedTheme,
+    collapsible = false,
+    open = true,
+    onToggleOpen,
     onToggleAllDirectories,
     onOpenTurnDiff,
   } = props;
   const summaryStat = useMemo(() => summarizeTurnDiffStats(files), [files]);
   const hasDirectories = files.some((file) => /[/\\]/.test(file.path));
+  const treeVisible = !collapsible || open;
+
+  const summary = (
+    <>
+      <span>
+        {files.length} changed file{files.length === 1 ? "" : "s"}
+      </span>
+      {hasNonZeroStat(summaryStat) && (
+        <DiffStatLabel
+          additions={summaryStat.additions}
+          deletions={summaryStat.deletions}
+          layout="inline"
+          className="text-xs leading-4"
+        />
+      )}
+    </>
+  );
 
   return (
     <div
       className="@container/changed-files mt-4 rounded-lg bg-secondary dark:bg-input/20"
-      data-changed-files-state="tree"
+      data-changed-files-state={treeVisible ? "tree" : "summary"}
     >
       <div
         data-changed-files-header=""
-        className="sticky top-2 z-10 flex items-center justify-between gap-2 rounded-t-lg bg-secondary px-3 py-2 dark:bg-[color-mix(in_srgb,var(--input)_20%,var(--background))]"
+        className={cn(
+          "sticky top-2 z-10 flex items-center justify-between gap-2 bg-secondary px-3 py-2 dark:bg-[color-mix(in_srgb,var(--input)_20%,var(--background))]",
+          treeVisible ? "rounded-t-lg" : "rounded-lg",
+        )}
       >
-        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-foreground">
-          <span>
-            {files.length} changed file{files.length === 1 ? "" : "s"}
-          </span>
-          {hasNonZeroStat(summaryStat) && (
-            <DiffStatLabel
-              additions={summaryStat.additions}
-              deletions={summaryStat.deletions}
-              layout="inline"
-              className="text-xs leading-4"
+        {collapsible ? (
+          <button
+            type="button"
+            data-scroll-anchor-ignore
+            aria-expanded={treeVisible}
+            aria-label={treeVisible ? "Hide changed files" : "Show changed files"}
+            className="group flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-md text-left text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={onToggleOpen}
+          >
+            <ChevronRightIcon
+              aria-hidden="true"
+              className={cn("size-3.5 shrink-0 transition-transform", treeVisible && "rotate-90")}
             />
-          )}
-        </div>
+            <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">{summary}</span>
+          </button>
+        ) : (
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-foreground">
+            {summary}
+          </div>
+        )}
         <div className="flex shrink-0 items-center gap-1">
-          {hasDirectories && (
+          {hasDirectories && treeVisible && (
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -110,14 +145,16 @@ export const ChangedFilesCard = memo(function ChangedFilesCard(props: {
           </Tooltip>
         </div>
       </div>
-      <ChangedFilesTree
-        key={`${turnId}:${allDirectoriesExpanded}`}
-        turnId={turnId}
-        files={files}
-        allDirectoriesExpanded={allDirectoriesExpanded}
-        resolvedTheme={resolvedTheme}
-        onOpenTurnDiff={onOpenTurnDiff}
-      />
+      {treeVisible && (
+        <ChangedFilesTree
+          key={`${turnId}:${allDirectoriesExpanded}`}
+          turnId={turnId}
+          files={files}
+          allDirectoriesExpanded={allDirectoriesExpanded}
+          resolvedTheme={resolvedTheme}
+          onOpenTurnDiff={onOpenTurnDiff}
+        />
+      )}
     </div>
   );
 });
