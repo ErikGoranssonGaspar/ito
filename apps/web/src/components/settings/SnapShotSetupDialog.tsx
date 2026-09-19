@@ -4,7 +4,7 @@ import {
   isModifierPairShortcut,
   type DesktopSnapShotSetupAction,
   type DesktopSnapShotState,
-} from "@t3tools/contracts";
+} from "@ito/contracts";
 import { useId, useState, type ReactNode } from "react";
 import { Button } from "../ui/button";
 import { Dialog, DialogDescription } from "../ui/dialog";

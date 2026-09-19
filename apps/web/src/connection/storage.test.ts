@@ -1,9 +1,6 @@
-import {
-  ConnectionTransientError,
-  PrimaryConnectionTarget,
-} from "@t3tools/client-runtime/connection";
-import { EnvironmentId } from "@t3tools/contracts";
-import { ConnectionCatalogDocument } from "@t3tools/client-runtime/platform";
+import { ConnectionTransientError, PrimaryConnectionTarget } from "@ito/client-runtime/connection";
+import { EnvironmentId } from "@ito/contracts";
+import { ConnectionCatalogDocument } from "@ito/client-runtime/platform";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Deferred from "effect/Deferred";

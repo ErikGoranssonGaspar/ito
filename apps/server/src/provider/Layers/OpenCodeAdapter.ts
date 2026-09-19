@@ -13,7 +13,7 @@ import {
   type TurnTokenUsage,
   TurnId,
   type UserInputQuestion,
-} from "@t3tools/contracts";
+} from "@ito/contracts";
 import * as Cause from "effect/Cause";
 import * as Crypto from "effect/Crypto";
 import * as DateTime from "effect/DateTime";
@@ -30,7 +30,7 @@ import * as Scope from "effect/Scope";
 import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
 import type { OpencodeClient, Part, PermissionRequest, QuestionRequest } from "@opencode-ai/sdk/v2";
-import { getModelSelectionStringOptionValue } from "@t3tools/shared/model";
+import { getModelSelectionStringOptionValue } from "@ito/shared/model";
 
 import { resolveAttachmentPath } from "../../attachmentStore.ts";
 import { ServerConfig } from "../../config.ts";
@@ -995,7 +995,7 @@ export function makeOpenCodeAdapter(
     );
     let messageIdEpochMillis = -1;
     let messageIdCounter = 0;
-    // T3 supplies the message ID to match prompt admission events. Keep OpenCode's sortable native shape so equal-time messages retain their upstream order.
+    // Ito supplies the message ID to match prompt admission events. Keep OpenCode's sortable native shape so equal-time messages retain their upstream order.
     const makeOpenCodeMessageId = Effect.fn("makeOpenCodeMessageId")(function* () {
       const epochMillis = DateTime.toEpochMillis(yield* DateTime.now);
       if (epochMillis !== messageIdEpochMillis) {
@@ -1286,7 +1286,7 @@ export function makeOpenCodeAdapter(
         return;
       }
       const detail =
-        "OpenCode accepted the prompt, but T3 Code could not confirm its message or session status.";
+        "OpenCode accepted the prompt, but Itô could not confirm its message or session status.";
       const abortExit = yield* Effect.exit(
         runOpenCodeSdk("session.abort", (signal) =>
           context.client.session.abort({ sessionID: context.openCodeSessionId }, { signal }),
@@ -2869,7 +2869,7 @@ export function makeOpenCodeAdapter(
               if (mcpSession && !server.external) {
                 yield* runOpenCodeSdk("mcp.add", () =>
                   client.mcp.add({
-                    name: "t3-code",
+                    name: "ito",
                     config: {
                       type: "remote",
                       url: mcpSession.endpoint,
@@ -3936,7 +3936,7 @@ export function makeOpenCodeAdapter(
               .slice(0, targetMessageIndex + 1)
               .findLast((entry) => entry.info.role === "user") ?? entries[targetMessageIndex]!;
           // Native revert also rewrites workspace files. Fork only the retained
-          // conversation so T3 alone decides whether filesystem changes survive.
+          // conversation so Ito alone decides whether filesystem changes survive.
           const fork = yield* runOpenCodeSdk("session.fork", () =>
             context.client.session.fork({
               sessionID: context.openCodeSessionId,

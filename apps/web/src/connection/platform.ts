@@ -4,7 +4,7 @@ import {
   PlatformConnectionSource,
   PrimaryEnvironmentAuth,
   SshEnvironmentGateway,
-} from "@t3tools/client-runtime/platform";
+} from "@ito/client-runtime/platform";
 import {
   BearerConnectionCredential,
   BearerConnectionProfile,
@@ -18,17 +18,17 @@ import {
   PrimaryConnectionRegistration,
   PrimaryConnectionTarget,
   Wakeups,
-} from "@t3tools/client-runtime/connection";
-import { bootstrapRemoteBearerSession } from "@t3tools/client-runtime/authorization";
-import { fetchRemoteEnvironmentDescriptor } from "@t3tools/client-runtime/environment";
-import { EnvironmentRpcRequestObserver } from "@t3tools/client-runtime/rpc";
+} from "@ito/client-runtime/connection";
+import { bootstrapRemoteBearerSession } from "@ito/client-runtime/authorization";
+import { fetchRemoteEnvironmentDescriptor } from "@ito/client-runtime/environment";
+import { EnvironmentRpcRequestObserver } from "@ito/client-runtime/rpc";
 import {
   AuthStandardClientScopes,
   type DesktopBridge,
   type DesktopEnvironmentBootstrap,
   type DesktopSshEnvironmentTarget,
   PRIMARY_LOCAL_ENVIRONMENT_ID,
-} from "@t3tools/contracts";
+} from "@ito/contracts";
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";

@@ -4,10 +4,10 @@ import type {
   ProviderInstanceId,
   ServerSettings,
   SourceControlWritingStyleMode,
-} from "@t3tools/contracts";
-import { DEFAULT_UNIFIED_SETTINGS } from "@t3tools/contracts/settings";
-import { createModelSelection } from "@t3tools/shared/model";
-import { resolveSourceControlWriterModelSelection } from "@t3tools/shared/serverSettings";
+} from "@ito/contracts";
+import { DEFAULT_UNIFIED_SETTINGS } from "@ito/contracts/settings";
+import { createModelSelection } from "@ito/shared/model";
+import { resolveSourceControlWriterModelSelection } from "@ito/shared/serverSettings";
 
 import {
   useScopedSettings,

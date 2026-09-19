@@ -7,7 +7,7 @@ import {
   ThreadId,
   type OrchestrationEvent,
   type OrchestrationThread,
-} from "@t3tools/contracts";
+} from "@ito/contracts";
 import * as Effect from "effect/Effect";
 import { HttpClient, HttpClientResponse } from "effect/unstable/http";
 import { bench, describe } from "vite-plus/test";
@@ -58,7 +58,7 @@ const target = new PrimaryConnectionTarget({
   wsBaseUrl: "wss://remote.example.test/ws",
 });
 const responses = {
-  "/.well-known/t3/environment": {
+  "/.well-known/ito/environment": {
     environmentId: target.environmentId,
     label: target.label,
     platform: { os: "linux", arch: "x64" },

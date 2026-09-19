@@ -10,7 +10,7 @@ import {
   ProviderRuntimeEvent,
   ProviderSession,
   ProviderInstanceId,
-} from "@t3tools/contracts";
+} from "@ito/contracts";
 import {
   ApprovalRequestId,
   CommandId,
@@ -24,7 +24,7 @@ import {
   type ServerSettings,
   ThreadId,
   TurnId,
-} from "@t3tools/contracts";
+} from "@ito/contracts";
 import * as Clock from "effect/Clock";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
@@ -272,7 +272,7 @@ describe("ProviderRuntimeIngestion", () => {
     workspaceSubdirectory?: string;
     isGitRepository?: CheckpointStore.CheckpointStore["Service"]["isGitRepository"];
   }) {
-    const repositoryRoot = makeTempDir("t3-provider-project-");
+    const repositoryRoot = makeTempDir("ito-provider-project-");
     NodeChildProcess.execFileSync("git", ["init", "--initial-branch=main"], {
       cwd: repositoryRoot,
       stdio: "ignore",

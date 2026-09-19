@@ -12,17 +12,17 @@ import { loadRepoEnv } from "./lib/public-config.ts";
 Object.assign(process.env, loadRepoEnv());
 
 const root = process.cwd();
-const stateDir = NodePath.resolve(root, ".t3");
+const stateDir = NodePath.resolve(root, ".ito");
 const gitEntry = NodePath.resolve(root, ".git");
 const isLinkedWorktree = NodeFS.existsSync(gitEntry) && NodeFS.statSync(gitEntry).isFile();
 const defaultOffset = isLinkedWorktree
   ? (NodeCrypto.createHash("sha256").update(root).digest().readUInt32BE(0) % 3000) + 1
   : 0;
-const configuredOffset = process.env.T3CODE_PORT_OFFSET;
+const configuredOffset = process.env.ITO_PORT_OFFSET;
 const startOffset = configuredOffset === undefined ? defaultOffset : Number(configuredOffset);
 
 if (!Number.isInteger(startOffset) || startOffset < 0) {
-  throw new Error("T3CODE_PORT_OFFSET must be a non-negative integer.");
+  throw new Error("ITO_PORT_OFFSET must be a non-negative integer.");
 }
 
 // These ports are rejected by browsers even when a local TCP server accepts them.
@@ -53,26 +53,26 @@ if (!ports) {
 
 const env = {
   ...process.env,
-  T3CODE_HOME: stateDir,
-  T3CODE_PORT: String(ports.server),
+  ITO_HOME: stateDir,
+  ITO_PORT: String(ports.server),
   PORT: String(ports.web),
   HOST: "127.0.0.1",
   VITE_DEV_SERVER_URL: `http://127.0.0.1:${ports.web}`,
   VITE_HTTP_URL: `http://127.0.0.1:${ports.server}`,
   VITE_WS_URL: `ws://127.0.0.1:${ports.server}`,
-  T3CODE_BUNDLED_DEV: process.env.T3CODE_BUNDLED_DEV ?? "1",
+  ITO_BUNDLED_DEV: process.env.ITO_BUNDLED_DEV ?? "1",
 };
 
 for (const name of [
-  "T3CODE_MODE",
-  "T3CODE_NO_BROWSER",
-  "T3CODE_HOST",
-  "T3CODE_DEV_AUTH_TOKEN",
-  "T3CODE_DESKTOP_WS_URL",
-  "T3CODE_SINGLE_ORIGIN_DEV",
-  "T3CODE_AUTO_BOOTSTRAP_PROJECT_FROM_CWD",
-  "T3_SERVICE_LAUNCHER_CONTEXT",
-  "T3_BOOT_SERVICE_UNIT",
+  "ITO_MODE",
+  "ITO_NO_BROWSER",
+  "ITO_HOST",
+  "ITO_DEV_AUTH_TOKEN",
+  "ITO_DESKTOP_WS_URL",
+  "ITO_SINGLE_ORIGIN_DEV",
+  "ITO_AUTO_BOOTSTRAP_PROJECT_FROM_CWD",
+  "ITO_SERVICE_LAUNCHER_CONTEXT",
+  "ITO_BOOT_SERVICE_UNIT",
 ]) {
   delete env[name as keyof typeof env];
 }
@@ -81,12 +81,16 @@ console.info(
   `[dev-runner] desktop serverPort=${ports.server} webPort=${ports.web} baseDir=${stateDir}`,
 );
 
-const child = NodeChildProcess.spawn("vp", ["run", "--filter=@t3tools/desktop", "--filter=@t3tools/web", "dev"], {
-  cwd: root,
-  env,
-  stdio: "inherit",
-  detached: false,
-});
+const child = NodeChildProcess.spawn(
+  "vp",
+  ["run", "--filter=@ito/desktop", "--filter=@ito/web", "dev"],
+  {
+    cwd: root,
+    env,
+    stdio: "inherit",
+    detached: false,
+  },
+);
 
 child.once("error", (error) => {
   console.error("Failed to start desktop development:", error);

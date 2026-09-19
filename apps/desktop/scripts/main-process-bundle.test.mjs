@@ -8,7 +8,7 @@ import { assert, it } from "vite-plus/test";
 import desktopConfig from "../vite.config.ts";
 
 it("keeps lazy imports and worker bundles from executing desktop startup twice", async () => {
-  const directory = await NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "t3-desktop-bundle-"));
+  const directory = await NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "ito-desktop-bundle-"));
   try {
     const workerEntries = ["src/snapShot/SnapShotAccessibilityWorker.ts"];
     await Promise.all([

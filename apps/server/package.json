@@ -1,5 +1,5 @@
 {
-  "name": "t3",
+  "name": "@ito/server",
   "version": "0.0.42",
   "license": "MIT",
   "type": "module",
@@ -24,11 +24,11 @@
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
-    "@t3tools/contracts": "workspace:*",
-    "@t3tools/shared": "workspace:*",
-    "@t3tools/ssh": "workspace:*",
-    "@t3tools/tailscale": "workspace:*",
-    "@t3tools/web": "workspace:*",
+    "@ito/contracts": "workspace:*",
+    "@ito/shared": "workspace:*",
+    "@ito/ssh": "workspace:*",
+    "@ito/tailscale": "workspace:*",
+    "@ito/web": "workspace:*",
     "@types/node": "catalog:",
     "@types/yauzl": "^3.4.0",
     "effect-acp": "workspace:*",

@@ -46,7 +46,7 @@ export class DesktopBackendPool extends Context.Service<
     // Option for the case that's guaranteed to be present.
     readonly primary: Effect.Effect<DesktopBackendInstance>;
   }
->()("@t3tools/desktop/backend/DesktopBackendPool") {}
+>()("@ito/desktop/backend/DesktopBackendPool") {}
 
 // Services required by makeBackendInstance — exported so callers that
 // build their own specs can confirm the layer graph satisfies them at

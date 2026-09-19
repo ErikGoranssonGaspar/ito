@@ -1,4 +1,4 @@
-import { OtlpHeadersFromString, OtlpProtocol } from "@t3tools/shared/observability";
+import { OtlpHeadersFromString, OtlpProtocol } from "@ito/shared/observability";
 import * as Config from "effect/Config";
 import * as ConfigProvider from "effect/ConfigProvider";
 import * as Option from "effect/Option";
@@ -35,24 +35,22 @@ const compactEnv = (env: Readonly<Record<string, string | undefined>>): Record<s
 
 export const DesktopConfig = Config.all({
   appDataDirectory: trimmedString("APPDATA"),
-  t3Home: trimmedString("T3CODE_HOME"),
+  itoHome: trimmedString("ITO_HOME"),
   devServerUrl: Config.url("VITE_DEV_SERVER_URL").pipe(Config.option),
-  devRemoteT3ServerEntryPath: trimmedString("T3CODE_DEV_REMOTE_T3_SERVER_ENTRY_PATH"),
-  configuredBackendPort: Config.port("T3CODE_PORT").pipe(Config.option),
-  commitHashOverride: trimmedString("T3CODE_COMMIT_HASH"),
-  desktopLanHostOverride: trimmedString("T3CODE_DESKTOP_LAN_HOST"),
-  desktopHttpsEndpointUrls: commaSeparatedStrings("T3CODE_DESKTOP_HTTPS_ENDPOINTS"),
-  otlpTracesUrl: trimmedString("T3CODE_OTLP_TRACES_URL"),
-  otlpExportIntervalMs: Config.int("T3CODE_OTLP_EXPORT_INTERVAL_MS").pipe(
-    Config.withDefault(10_000),
-  ),
-  otlpHeaders: Config.schema(OtlpHeadersFromString, "T3CODE_OTLP_HEADERS").pipe(Config.option),
-  otlpProtocol: Config.schema(OtlpProtocol, "T3CODE_OTLP_PROTOCOL").pipe(
+  devRemoteItoServerEntryPath: trimmedString("ITO_DEV_REMOTE_Ito_SERVER_ENTRY_PATH"),
+  configuredBackendPort: Config.port("ITO_PORT").pipe(Config.option),
+  commitHashOverride: trimmedString("ITO_COMMIT_HASH"),
+  desktopLanHostOverride: trimmedString("ITO_DESKTOP_LAN_HOST"),
+  desktopHttpsEndpointUrls: commaSeparatedStrings("ITO_DESKTOP_HTTPS_ENDPOINTS"),
+  otlpTracesUrl: trimmedString("ITO_OTLP_TRACES_URL"),
+  otlpExportIntervalMs: Config.int("ITO_OTLP_EXPORT_INTERVAL_MS").pipe(Config.withDefault(10_000)),
+  otlpHeaders: Config.schema(OtlpHeadersFromString, "ITO_OTLP_HEADERS").pipe(Config.option),
+  otlpProtocol: Config.schema(OtlpProtocol, "ITO_OTLP_PROTOCOL").pipe(
     Config.withDefault("http/json"),
   ),
-  disableAutoUpdate: optionalBoolean("T3CODE_DISABLE_AUTO_UPDATE"),
-  mockUpdates: optionalBoolean("T3CODE_DESKTOP_MOCK_UPDATES"),
-  mockUpdateServerPort: Config.port("T3CODE_DESKTOP_MOCK_UPDATE_SERVER_PORT").pipe(
+  disableAutoUpdate: optionalBoolean("ITO_DISABLE_AUTO_UPDATE"),
+  mockUpdates: optionalBoolean("ITO_DESKTOP_MOCK_UPDATES"),
+  mockUpdateServerPort: Config.port("ITO_DESKTOP_MOCK_UPDATE_SERVER_PORT").pipe(
     Config.withDefault(3000),
   ),
 });

@@ -4,7 +4,7 @@ import {
   type DesktopSshEnvironmentBootstrap,
   type DesktopSshEnvironmentTarget,
   EnvironmentId,
-} from "@t3tools/contracts";
+} from "@ito/contracts";
 import * as Context from "effect/Context";
 import type * as Effect from "effect/Effect";
 import type * as Option from "effect/Option";
@@ -28,14 +28,14 @@ export class ClientPresentation extends Context.Service<
     readonly metadata: AuthClientPresentationMetadata;
     readonly scopes: ReadonlyArray<AuthEnvironmentScope>;
   }
->()("@t3tools/client-runtime/platform/capabilities/ClientPresentation") {}
+>()("@ito/client-runtime/platform/capabilities/ClientPresentation") {}
 
 export class PrimaryEnvironmentAuth extends Context.Service<
   PrimaryEnvironmentAuth,
   {
     readonly bearerToken: Effect.Effect<Option.Option<string>, ConnectionAttemptError>;
   }
->()("@t3tools/client-runtime/platform/capabilities/PrimaryEnvironmentAuth") {}
+>()("@ito/client-runtime/platform/capabilities/PrimaryEnvironmentAuth") {}
 
 export class SshEnvironmentGateway extends Context.Service<
   SshEnvironmentGateway,
@@ -52,4 +52,4 @@ export class SshEnvironmentGateway extends Context.Service<
       target: DesktopSshEnvironmentTarget,
     ) => Effect.Effect<void, ConnectionAttemptError>;
   }
->()("@t3tools/client-runtime/platform/capabilities/SshEnvironmentGateway") {}
+>()("@ito/client-runtime/platform/capabilities/SshEnvironmentGateway") {}

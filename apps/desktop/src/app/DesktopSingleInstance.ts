@@ -9,6 +9,7 @@ import * as Electron from "electron";
 import * as ElectronApp from "../electron/ElectronApp.ts";
 import * as ElectronWindow from "../electron/ElectronWindow.ts";
 import * as DesktopAppIdentity from "./DesktopAppIdentity.ts";
+import * as DesktopStateMigration from "./DesktopStateMigration.ts";
 
 export class DesktopSingleInstance extends Context.Service<
   DesktopSingleInstance,
@@ -19,11 +20,21 @@ export class DesktopSingleInstance extends Context.Service<
       ElectronApp.ElectronApp | ElectronWindow.ElectronWindow | Scope.Scope
     >;
   }
->()("@t3tools/desktop/app/DesktopSingleInstance") {}
+>()("@ito/desktop/app/DesktopSingleInstance") {}
 
 /** Set the existing user-data path before Electron takes its single-instance lock. */
 export const make = Effect.gen(function* () {
   const electronApp = yield* ElectronApp.ElectronApp;
+  // Before the lock, so no other process has the SQLite database open. A failed
+  // copy must not stop the app: it just starts on empty state, and the T3 Code
+  // directories are still there to retry from.
+  yield* DesktopStateMigration.migrateLegacyState.pipe(
+    Effect.catchCause((cause) =>
+      Effect.logWarning("Could not carry legacy T3 Code state over to Itô").pipe(
+        Effect.annotateLogs({ cause }),
+      ),
+    ),
+  );
   const userDataPath = yield* DesktopAppIdentity.resolveUserDataPath;
   yield* electronApp.setPath("userData", userDataPath);
 

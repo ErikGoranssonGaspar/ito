@@ -1,4 +1,4 @@
-import type { PreviewViewportSetting } from "@t3tools/contracts";
+import type { PreviewViewportSetting } from "@ito/contracts";
 
 import { browserViewportSettingKey } from "~/browser/browserViewportLayout";
 

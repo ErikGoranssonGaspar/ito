@@ -1,4 +1,4 @@
-import type { DesktopSshEnvironmentTarget, EnvironmentMachineKind } from "@t3tools/contracts";
+import type { DesktopSshEnvironmentTarget, EnvironmentMachineKind } from "@ito/contracts";
 import * as Option from "effect/Option";
 import type { ReactNode } from "react";
 
@@ -14,7 +14,7 @@ export function formatDesktopSshTarget(target: DesktopSshEnvironmentTarget): str
 
 /**
  * How this client reaches a machine, printed first in every environment row so
- * T3 Connect, SSH, WSL, and plain remote links are told apart without a legend.
+ * Itô, SSH, WSL, and plain remote links are told apart without a legend.
  */
 export function environmentTransportLabel(environment: EnvironmentPresentation): string {
   const { entry } = environment;

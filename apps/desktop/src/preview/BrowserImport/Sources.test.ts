@@ -3,7 +3,7 @@
 import * as NodePath from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
-import { HostProcessEnvironment, HostProcessHostname } from "@t3tools/shared/hostProcess";
+import { HostProcessEnvironment, HostProcessHostname } from "@ito/shared/hostProcess";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
@@ -25,14 +25,14 @@ import {
   listSourceProfiles,
   sourcePathContext,
 } from "./Sources.ts";
-import { symlinksSupported } from "@t3tools/shared/testing/symlinks";
+import { symlinksSupported } from "@ito/shared/testing/symlinks";
 
 const helium = BROWSER_IMPORT_SOURCES.find((source) => source.id === "helium")!;
 
 /** A scratch home with the source's user-data directory already created. */
 const withSourceHome = Effect.fnUntraced(function* () {
   const fileSystem = yield* FileSystem.FileSystem;
-  const home = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3code-sources-" });
+  const home = yield* fileSystem.makeTempDirectoryScoped({ prefix: "ito-sources-" });
   const context = yield* sourcePathContext.pipe(
     Effect.provideService(HostProcessEnvironment, { HOME: home }),
   );
@@ -534,7 +534,7 @@ describe("listSourceProfiles Firefox fallback", () => {
       Effect.gen(function* () {
         const fileSystem = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
-        const home = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3code-firefox-" });
+        const home = yield* fileSystem.makeTempDirectoryScoped({ prefix: "ito-firefox-" });
         const context = yield* sourcePathContext.pipe(
           Effect.provideService(HostProcessEnvironment, { HOME: home }),
         );
@@ -562,7 +562,7 @@ describe("listSourceProfiles Firefox fallback", () => {
         const fileSystem = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
         const home = yield* fileSystem.makeTempDirectoryScoped({
-          prefix: "t3code-firefox-stale-ini-",
+          prefix: "ito-firefox-stale-ini-",
         });
         const context = yield* sourcePathContext.pipe(
           Effect.provideService(HostProcessEnvironment, { HOME: home }),
@@ -600,7 +600,7 @@ describe("listSourceProfiles Firefox fallback", () => {
         const fileSystem = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
         const home = yield* fileSystem.makeTempDirectoryScoped({
-          prefix: "t3code-firefox-counts-",
+          prefix: "ito-firefox-counts-",
         });
         const context = yield* sourcePathContext.pipe(
           Effect.provideService(HostProcessEnvironment, { HOME: home }),
@@ -651,7 +651,7 @@ describe("isSourceRunning for Firefox", () => {
     run(
       Effect.gen(function* () {
         const fileSystem = yield* FileSystem.FileSystem;
-        const home = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3code-firefox-" });
+        const home = yield* fileSystem.makeTempDirectoryScoped({ prefix: "ito-firefox-" });
         const context = yield* sourcePathContext.pipe(
           Effect.provideService(HostProcessEnvironment, { HOME: home }),
         );
@@ -680,7 +680,7 @@ describe("isSourceRunning for Firefox", () => {
     run(
       Effect.gen(function* () {
         const fileSystem = yield* FileSystem.FileSystem;
-        const directory = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3code-lock-" });
+        const directory = yield* fileSystem.makeTempDirectoryScoped({ prefix: "ito-lock-" });
         const lock = `${directory}/.parentlock`;
         yield* fileSystem.writeFileString(lock, "");
         // A Mac without the developer tools has only Apple's shim, which
@@ -701,7 +701,7 @@ describe("isSourceRunning for Firefox", () => {
       Effect.gen(function* () {
         const fileSystem = yield* FileSystem.FileSystem;
         const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
-        const home = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3code-firefox-" });
+        const home = yield* fileSystem.makeTempDirectoryScoped({ prefix: "ito-firefox-" });
         const context = yield* sourcePathContext.pipe(
           Effect.provideService(HostProcessEnvironment, { HOME: home }),
         );

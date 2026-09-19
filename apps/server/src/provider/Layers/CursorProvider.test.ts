@@ -10,8 +10,8 @@ import * as Stream from "effect/Stream";
 import type * as ChildProcessSpawner from "effect/unstable/process/ChildProcessSpawner";
 import { describe, expect, it } from "vite-plus/test";
 import type * as EffectAcpSchema from "effect-acp/schema";
-import { ProviderDriverKind, ProviderInstanceId, type CursorSettings } from "@t3tools/contracts";
-import { createModelCapabilities } from "@t3tools/shared/model";
+import { ProviderDriverKind, ProviderInstanceId, type CursorSettings } from "@ito/contracts";
+import { createModelCapabilities } from "@ito/shared/model";
 
 import {
   buildCursorProviderSnapshot,
@@ -34,7 +34,7 @@ import {
   rewriteCursorSkillMentions,
 } from "../Drivers/CursorSkills.ts";
 import { execScriptSource, writeFakeCli } from "../../testUtils/fakeCli.ts";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import { HostProcessPlatform } from "@ito/shared/hostProcess";
 import { HttpClient, HttpClientResponse } from "effect/unstable/http";
 import { cursorUsageResponseToLimits, readCursorUsageLimits } from "./cursorUsageLimits.ts";
 
@@ -161,7 +161,7 @@ const makeExitLogFixture = Effect.fn("makeExitLogFixture")(function* (prefix: st
   return {
     exitLogPath,
     wrapperPath: yield* makeMockAgentWrapper({
-      T3_ACP_EXIT_LOG_PATH: exitLogPath,
+      ITO_ACP_EXIT_LOG_PATH: exitLogPath,
     }),
   };
 });
@@ -309,14 +309,14 @@ const baseCursorSettings: CursorSettings = {
 };
 const cursorAcpDiscoveryFailedMessage = [
   "Cursor ACP model discovery failed.",
-  "Cursor CLI setup may be incomplete; install or enable the Cursor CLI, restart T3 Code, and try again.",
+  "Cursor CLI setup may be incomplete; install or enable the Cursor CLI, restart Itô, and try again.",
   "See https://cursor.com/docs/cli/installation.",
   "Check server logs for ACP details.",
 ].join(" ");
-const missingCursorBinaryPath = "/definitely/not/installed/t3-cursor-agent";
+const missingCursorBinaryPath = "/definitely/not/installed/ito-cursor-agent";
 const cursorCliCommandMissingMessage = [
   `Cursor CLI command \`${missingCursorBinaryPath}\` was not found.`,
-  `Install or enable the Cursor CLI, make sure \`${missingCursorBinaryPath}\` is on PATH, then restart T3 Code.`,
+  `Install or enable the Cursor CLI, make sure \`${missingCursorBinaryPath}\` is on PATH, then restart Itô.`,
   "See https://cursor.com/docs/cli/installation.",
 ].join(" ");
 
@@ -715,7 +715,7 @@ describe("checkCursorProviderStatus", () => {
         },
         {
           ...process.env,
-          T3_ACP_REQUEST_LOG_PATH: requestLogPath,
+          ITO_ACP_REQUEST_LOG_PATH: requestLogPath,
         },
       ),
     );
@@ -744,7 +744,7 @@ describe("discoverCursorModelsViaAcp", () => {
         };
         const discover = yield* makeCursorModelDiscovery(settings, {
           ...process.env,
-          T3_ACP_REQUEST_LOG_PATH: requestLogPath,
+          ITO_ACP_REQUEST_LOG_PATH: requestLogPath,
         });
         const about = {
           version: "2026.08.11",

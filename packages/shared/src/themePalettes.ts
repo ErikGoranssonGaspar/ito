@@ -1,10 +1,10 @@
-export const BUILT_IN_THEME_IDS = ["t3-chat", "grove", "ocean", "ember", "iris"] as const;
+export const BUILT_IN_THEME_IDS = ["ito", "orchid", "grove", "ocean", "ember", "iris"] as const;
 
 /**
  * The retired mobile app's own palette. Kept because a theme saved back then may
  * still carry this id, and publishing it would report success and change nothing.
  */
-export const MOBILE_DEFAULT_THEME_ID = "t3-code";
+export const MOBILE_DEFAULT_THEME_ID = "ito";
 
 /**
  * Ids a theme may not take: the appearance keywords a stored preference uses,
@@ -17,6 +17,7 @@ export const RESERVED_THEME_IDS: ReadonlySet<string> = new Set([
   "light",
   "dark",
   ...BUILT_IN_THEME_IDS,
+  "t3-chat",
   "t3-chat-dark",
   "t3-grove",
   "t3-ocean",
@@ -116,9 +117,141 @@ export type ThemeDefinition = Readonly<{
   managed?: boolean;
 }>;
 
-export const T3_CHAT_THEME: ThemeDefinition = {
-  id: "t3-chat",
-  label: "T3 Chat",
+/**
+ * The flagship: the app icon's colours as an interface. Sage greens for every
+ * neutral, the mark's ink green as the accent, red and amber left alone so a
+ * failure still reads as a failure.
+ */
+export const ITO_THEME: ThemeDefinition = {
+  id: "ito",
+  label: "Itô",
+  appearance: "light",
+  colors: {
+    canvas: "oklch(0.982446 0.003843 158)",
+    chrome: "oklch(0.982446 0.003843 158)",
+    toolbar: "oklch(0.982446 0.003843 158)",
+    toolbarForeground: "oklch(0.325698 0.044124 158)",
+    toolbarBorder: "oklch(0.856784 0.031494 158)",
+    toolbarControl: "oklch(0.939552 0.009229 158)",
+    toolbarControlForeground: "oklch(0.325698 0.044124 158)",
+    toolbarControlHover: "oklch(0.884525 0.01583 158)",
+    surface: "oklch(0.971835 0.004896 158)",
+    surfaceRaised: "oklch(0.988235 0.001919 158)",
+    surfaceOverlay: "oklch(1 0 0)",
+    text: "oklch(0.325698 0.044124 158)",
+    textMuted: "oklch(0.494754 0.05 158)",
+    border: "oklch(0.923531 0.008074 158)",
+    input: "oklch(0.851713 0.021212 158)",
+    focus: "oklch(0.556147 0.091554 172)",
+    accent: "oklch(0.546147 0.091554 172)",
+    accentForeground: "oklch(1 0 0)",
+    secondary: "oklch(0.869588 0.025654 158)",
+    secondaryForeground: "oklch(0.444777 0.05 158)",
+    muted: "oklch(0.802407 0.034566 158)",
+    mutedForeground: "oklch(0.408932 0.05 158)",
+    placeholder: "oklch(0.539927 0.034282 158)",
+    secondaryLabel: "oklch(0.494754 0.05 158)",
+    iconMuted: "oklch(0.494754 0.05 158)",
+    error: "oklch(0.627117 0.248974 7.734)",
+    errorForeground: "oklch(0.458704 0.169677 3.815)",
+    errorSurface: "oklch(0.942787 0.032076 344.963)",
+    warning: "oklch(0.76859 0.164659 70.08)",
+    warningForeground: "oklch(0.54612 0.143036 48.949)",
+    warningSurface: "oklch(0.962901 0.015297 48.56)",
+    update: "oklch(0.556147 0.091554 172)",
+    updateForeground: "oklch(0.465069 0.080194 172)",
+    updateSurface: "oklch(0.930264 0.013754 158)",
+    accentSurface: "oklch(0.939552 0.009229 158)",
+    accentSurfaceForeground: "oklch(0.396296 0.009551 158)",
+    messageSurface: "oklch(0.926746 0.014401 158)",
+    messageForeground: "oklch(0.354591 0.035558 158)",
+    messageAction: "oklch(0.546147 0.091554 172)",
+    messageActionForeground: "oklch(1 0 0)",
+    messageActionHover: "oklch(0.506699 0.083104 172)",
+    codeBackground: "oklch(0.953855 0.007484 158)",
+    codeForeground: "oklch(0.445128 0.049419 158)",
+    sidebar: "oklch(0.928886 0.011848 158)",
+    sidebarForeground: "oklch(0.396296 0.009551 158)",
+    sidebarMutedForeground: "oklch(0.494754 0.05 158)",
+    sidebarControlSurface: "oklch(0.978851 0.000502 158)",
+    sidebarRowHover: "oklch(0.978851 0.000502 158)",
+    sidebarRowActive: "oklch(0.978851 0.000502 158)",
+    sidebarRowSelected: "oklch(0.978851 0.000502 158)",
+    sidebarBorder: "oklch(0.938313 0.00097 158)",
+    terminalBackground: "oklch(0.982446 0.003843 158)",
+    terminalForeground: "oklch(0.325698 0.044124 158)",
+    terminalCursor: "oklch(0.556147 0.091554 172)",
+    terminalSelection: "oklch(0.869588 0.025654 158)",
+    terminalScrollbar: "oklch(0.851713 0.021212 158)",
+    terminalScrollbarHover: "oklch(0.802407 0.034566 158)",
+  },
+  variants: {
+    dark: {
+      canvas: "oklch(0.22813 0.007739 158)",
+      chrome: "oklch(0.22813 0.007739 158)",
+      toolbar: "oklch(0.22813 0.007739 158)",
+      toolbarForeground: "oklch(0.980735 0.001555 158)",
+      toolbarBorder: "oklch(0.266943 0.0058 158)",
+      toolbarControl: "oklch(0.313674 0.011617 158)",
+      toolbarControlForeground: "oklch(0.848252 0.014534 158)",
+      toolbarControlHover: "oklch(0.364912 0.019302 158)",
+      surface: "oklch(0.267101 0.007661 158)",
+      surfaceRaised: "oklch(0.279864 0.008197 158)",
+      surfaceOverlay: "oklch(0.154761 0.005001 158)",
+      text: "oklch(0.980735 0.001555 158)",
+      textMuted: "oklch(0.880303 0.011693 158)",
+      border: "oklch(0.266943 0.0058 158)",
+      input: "oklch(0.266817 0.011009 158)",
+      focus: "oklch(0.556147 0.091554 172)",
+      accent: "oklch(0.433044 0.077846 172)",
+      accentForeground: "oklch(0.901233 0.024019 172)",
+      secondary: "oklch(0.313674 0.011617 158)",
+      secondaryForeground: "oklch(0.848252 0.014534 158)",
+      muted: "oklch(0.360924 0.008158 158)",
+      mutedForeground: "oklch(0.880303 0.011693 158)",
+      placeholder: "oklch(0.657087 0.010726 158)",
+      secondaryLabel: "oklch(0.880303 0.011693 158)",
+      iconMuted: "oklch(0.848252 0.014534 158)",
+      error: "oklch(0.458704 0.169677 3.815)",
+      errorForeground: "oklch(0.901233 0.057189 343.694)",
+      errorSurface: "oklch(0.259022 0.04799 340.062)",
+      warning: "oklch(0.76859 0.164659 70.08)",
+      warningForeground: "oklch(0.836861 0.164422 84.429)",
+      warningSurface: "oklch(0.321706 0.036256 60.806)",
+      update: "oklch(0.433044 0.077846 172)",
+      updateForeground: "oklch(0.901233 0.024019 172)",
+      updateSurface: "oklch(0.256077 0.023942 158)",
+      accentSurface: "oklch(0.364912 0.019302 158)",
+      accentSurfaceForeground: "oklch(0.964695 0.003473 158)",
+      messageSurface: "oklch(0.273791 0.009706 158)",
+      messageForeground: "oklch(0.949872 0.008082 158)",
+      messageAction: "oklch(0.433044 0.077846 172)",
+      messageActionForeground: "oklch(0.901233 0.024019 172)",
+      messageActionHover: "oklch(0.431229 0.077548 172)",
+      codeBackground: "oklch(0.22813 0.007739 158)",
+      codeForeground: "oklch(0.848703 0.024411 158)",
+      sidebar: "oklch(0.185778 0.00736 158)",
+      sidebarForeground: "oklch(0.967434 0.000504 158)",
+      sidebarMutedForeground: "oklch(0.880303 0.011693 158)",
+      sidebarControlSurface: "oklch(0.23366 0.009911 158)",
+      sidebarRowHover: "oklch(0.23366 0.009911 158)",
+      sidebarRowActive: "oklch(0.23366 0.009911 158)",
+      sidebarRowSelected: "oklch(0.23366 0.009911 158)",
+      sidebarBorder: "oklch(0.269132 0.011691 158)",
+      terminalBackground: "oklch(0.22813 0.007739 158)",
+      terminalForeground: "oklch(0.980735 0.001555 158)",
+      terminalCursor: "oklch(0.556147 0.091554 172)",
+      terminalSelection: "oklch(0.313674 0.011617 158)",
+      terminalScrollbar: "oklch(0.266817 0.011009 158)",
+      terminalScrollbarHover: "oklch(0.360924 0.008158 158)",
+    },
+  },
+  sidebarArtwork: true,
+};
+
+export const ORCHID_THEME: ThemeDefinition = {
+  id: "orchid",
+  label: "Orchid",
   appearance: "light",
   colors: {
     canvas: "oklch(0.982446 0.010114 325.653)",
@@ -752,7 +885,8 @@ export const IRIS_THEME: ThemeDefinition = {
 };
 
 export const BUILT_IN_THEMES: ReadonlyArray<ThemeDefinition> = [
-  T3_CHAT_THEME,
+  ITO_THEME,
+  ORCHID_THEME,
   GROVE_THEME,
   OCEAN_THEME,
   EMBER_THEME,

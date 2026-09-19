@@ -7,8 +7,8 @@ import {
   type EnvironmentRequestInvalidError,
   type EnvironmentResourceNotFoundError,
   type EnvironmentScopeRequiredError,
-} from "@t3tools/contracts";
-import { httpHeaderRedactionLayer } from "@t3tools/shared/httpObservability";
+} from "@ito/contracts";
+import { httpHeaderRedactionLayer } from "@ito/shared/httpObservability";
 import * as Data from "effect/Data";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";

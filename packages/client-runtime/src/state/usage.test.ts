@@ -1,9 +1,4 @@
-import {
-  EnvironmentId,
-  UsageDay,
-  USAGE_CONTRACT_VERSION,
-  type UsageSummary,
-} from "@t3tools/contracts";
+import { EnvironmentId, UsageDay, USAGE_CONTRACT_VERSION, type UsageSummary } from "@ito/contracts";
 import * as Effect from "effect/Effect";
 import { AsyncResult, Atom, AtomRegistry } from "effect/unstable/reactivity";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";

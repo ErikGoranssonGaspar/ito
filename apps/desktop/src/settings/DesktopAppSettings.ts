@@ -1,8 +1,5 @@
-import {
-  DesktopServerExposureModeSchema,
-  type DesktopServerExposureMode,
-} from "@t3tools/contracts";
-import { fromLenientJson } from "@t3tools/shared/schemaJson";
+import { DesktopServerExposureModeSchema, type DesktopServerExposureMode } from "@ito/contracts";
+import { fromLenientJson } from "@ito/shared/schemaJson";
 import * as Context from "effect/Context";
 import * as Crypto from "effect/Crypto";
 import * as Effect from "effect/Effect";
@@ -127,7 +124,7 @@ export class DesktopAppSettings extends Context.Service<
       readonly port: Option.Option<number>;
     }) => Effect.Effect<DesktopSettingsChange, DesktopSettingsWriteError>;
   }
->()("@t3tools/desktop/settings/DesktopAppSettings") {}
+>()("@ito/desktop/settings/DesktopAppSettings") {}
 
 export function resolveDefaultDesktopSettings(): DesktopSettings {
   return DEFAULT_DESKTOP_SETTINGS;

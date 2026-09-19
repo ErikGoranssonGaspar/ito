@@ -5,7 +5,7 @@ import {
   type ServerLifecycleWelcomePayload,
   type ServerLifecycleStreamReadyEvent,
   WS_METHODS,
-} from "@t3tools/contracts";
+} from "@ito/contracts";
 import * as Cause from "effect/Cause";
 import * as Duration from "effect/Duration";
 import * as Deferred from "effect/Deferred";

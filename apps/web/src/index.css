@@ -12,29 +12,29 @@ html[data-mobile-composer-route-transition="true"]::view-transition-new(root) {
   animation: none;
 }
 
-html[data-mobile-composer-route-transition="true"]::view-transition-group(t3-mobile-composer) {
+html[data-mobile-composer-route-transition="true"]::view-transition-group(ito-mobile-composer) {
   animation-duration: 180ms;
   animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-html[data-mobile-composer-route-transition="true"]::view-transition-image-pair(t3-mobile-composer) {
+html[data-mobile-composer-route-transition="true"]::view-transition-image-pair(ito-mobile-composer) {
   isolation: isolate;
 }
 
-html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobile-composer) {
-  animation: t3-mobile-composer-old 180ms linear both;
+html[data-mobile-composer-route-transition="true"]::view-transition-old(ito-mobile-composer) {
+  animation: ito-mobile-composer-old 180ms linear both;
   mix-blend-mode: normal;
 }
 
-html[data-mobile-composer-route-transition="true"]::view-transition-new(t3-mobile-composer) {
-  animation: t3-mobile-composer-new 180ms linear both;
+html[data-mobile-composer-route-transition="true"]::view-transition-new(ito-mobile-composer) {
+  animation: ito-mobile-composer-new 180ms linear both;
   mix-blend-mode: normal;
 }
 
 /* The expanded and compact composers have different internal layouts. Use a
    brief crossfade while their shared wrapper moves so the layout change does
    not read as a single-frame cut. */
-@keyframes t3-mobile-composer-old {
+@keyframes ito-mobile-composer-old {
   0%,
   35% {
     opacity: 1;
@@ -45,7 +45,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-new(t3-mobil
   }
 }
 
-@keyframes t3-mobile-composer-new {
+@keyframes ito-mobile-composer-new {
   0%,
   35% {
     opacity: 0;
@@ -56,16 +56,16 @@ html[data-mobile-composer-route-transition="true"]::view-transition-new(t3-mobil
   }
 }
 
-html[data-mobile-composer-route-transition="true"]::view-transition-group(t3-mobile-draft-headline) {
+html[data-mobile-composer-route-transition="true"]::view-transition-group(ito-mobile-draft-headline) {
   animation-duration: 130ms;
 }
 
-html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobile-draft-headline) {
-  animation: t3-mobile-draft-headline-exit 130ms cubic-bezier(0.4, 0, 1, 1) both;
+html[data-mobile-composer-route-transition="true"]::view-transition-old(ito-mobile-draft-headline) {
+  animation: ito-mobile-draft-headline-exit 130ms cubic-bezier(0.4, 0, 1, 1) both;
   mix-blend-mode: normal;
 }
 
-@keyframes t3-mobile-draft-headline-exit {
+@keyframes ito-mobile-draft-headline-exit {
   from {
     opacity: 1;
     transform: translateY(0);
@@ -547,18 +547,18 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
 }
 
 @layer base {
-  ::highlight(t3-assistant-citation) {
+  ::highlight(ito-assistant-citation) {
     background-color: color-mix(
       in oklab,
       var(--primary) calc(var(--assistant-citation-highlight-opacity) * 100%),
       transparent
     );
   }
-  ::highlight(t3-assistant-citation-comment) {
+  ::highlight(ito-assistant-citation-comment) {
     background-color: color-mix(in oklab, var(--primary) 45%, transparent);
   }
   :root {
-    /* Keep the original T3 Code artwork palettes as the defaults. Built-in
+    /* Keep the original Itô artwork palettes as the defaults. Built-in
        themes override them with their own pigments in the components layer. */
     --stage-art-top: oklch(0.782169 0.123386 240.226);
     --stage-art-mid: oklch(0.616111 0.195824 259.735);
@@ -629,7 +629,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
      vellum, forest drafting paper, marine cyanotype, copper, and violet ink.
      These colors stay deliberately deep at the top edge so the white stage
      wordmark and controls retain contrast in both appearance modes. */
-  html[data-theme-id="t3-chat"] {
+  html[data-theme-id="orchid"] {
     --stage-art-top: oklch(0.760675 0.141361 348.019);
     --stage-art-mid: oklch(0.588093 0.188832 353.138);
     --stage-art-bottom: oklch(0.383959 0.135096 348.656);
@@ -646,6 +646,40 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
       --stage-art-secondary: oklch(0.667398 0.165674 352.549);
       --stage-art-tertiary: oklch(0.609315 0.163722 306.315);
       --stage-art-line: oklch(0.945349 0.036045 341.433);
+    }
+  }
+
+  html[data-theme-id="ito"] {
+    --stage-art-top: oklch(0.751465 0.090185 172);
+    --stage-art-mid: oklch(0.567105 0.088792 172);
+    --stage-art-bottom: oklch(0.367918 0.054108 172);
+    --stage-art-highlight: oklch(0.976387 0.027482 172);
+    --stage-art-secondary: oklch(0.80968 0.093657 172);
+    --stage-art-tertiary: oklch(0.784102 0.09184 87);
+    --stage-art-line: oklch(0.981098 0.02225 172);
+    --stage-night-top: oklch(0.45805 0.063693 172);
+    --stage-night-mid: oklch(0.368483 0.052505 172);
+    --stage-night-bottom: oklch(0.264797 0.035518 172);
+    --stage-night-highlight: oklch(0.912563 0.044138 172);
+    --stage-night-secondary: oklch(0.665652 0.087785 172);
+    --stage-night-tertiary: oklch(0.698651 0.08757 87);
+    --stage-night-line: oklch(0.945336 0.033538 172);
+
+    @variant dark {
+      --stage-art-top: oklch(0.58719 0.078952 172);
+      --stage-art-mid: oklch(0.454979 0.063225 172);
+      --stage-art-bottom: oklch(0.297856 0.040284 172);
+      --stage-art-highlight: oklch(0.952407 0.043098 172);
+      --stage-art-secondary: oklch(0.732591 0.096485 172);
+      --stage-art-tertiary: oklch(0.716282 0.099065 87);
+      --stage-art-line: oklch(0.961577 0.028228 172);
+      --stage-night-top: oklch(0.398632 0.052427 172);
+      --stage-night-mid: oklch(0.290561 0.039755 172);
+      --stage-night-bottom: oklch(0.210147 0.025384 172);
+      --stage-night-highlight: oklch(0.866303 0.046021 172);
+      --stage-night-secondary: oklch(0.586553 0.074978 172);
+      --stage-night-tertiary: oklch(0.6364 0.086504 87);
+      --stage-night-line: oklch(0.913292 0.028574 172);
     }
   }
 
@@ -757,7 +791,12 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
     }
   }
 
-  :is(html[data-theme-id="t3-chat"], html[data-theme-id="ocean"], html[data-theme-id="iris"]) {
+  :is(
+    html[data-theme-id="ito"],
+    html[data-theme-id="orchid"],
+    html[data-theme-id="ocean"],
+    html[data-theme-id="iris"]
+  ) {
     --stage-night-top: color-mix(in oklch, var(--stage-art-top) 38%, var(--stage-night-base-top));
     --stage-night-mid: color-mix(in oklch, var(--stage-art-mid) 38%, var(--stage-night-base-mid));
     --stage-night-bottom: color-mix(
@@ -780,7 +819,8 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   }
 
   :is(
-    html[data-theme-id="t3-chat"],
+    html[data-theme-id="ito"],
+    html[data-theme-id="orchid"],
     html[data-theme-id="grove"],
     html[data-theme-id="ocean"],
     html[data-theme-id="ember"],
@@ -1351,10 +1391,10 @@ html[data-theme-id] .chat-markdown .chat-markdown-chrome-action {
   color: color-mix(in srgb, var(--code-foreground) 72%, transparent);
 }
 
-/* T3 Chat renders inline code and compact chat artifacts with its translucent
+/* Orchid renders inline code and compact chat artifacts with its translucent
    secondary surface flattened over the light chat canvas. The raw muted and
    secondary tokens are substantially darker than those visible pixels. */
-html[data-theme-id="t3-chat"] {
+html[data-theme-id="orchid"] {
   @variant light {
     & .chat-markdown :not(pre) > code,
     & [data-changed-files-state],
@@ -1405,9 +1445,9 @@ html[data-theme-id] [data-app-sidebar] {
   }
 }
 
-/* T3 Chat's panel divider is deliberately pink, and its resize affordance
+/* Orchid's panel divider is deliberately pink, and its resize affordance
    keeps that color while hovered. Do not neutralize this branded edge. */
-html[data-theme-id="t3-chat"] [data-app-sidebar] {
+html[data-theme-id="orchid"] [data-app-sidebar] {
   @variant dark {
     border-color: var(--contrast-sidebar-border);
   }
@@ -1575,10 +1615,10 @@ body {
   --surface-grain-size: 256px 256px;
 }
 
-/* The live T3 Chat texture is a 128px grayscale tile with a constant 7/255
+/* The live Orchid texture is a 128px grayscale tile with a constant 7/255
    alpha. Keep our procedural texture cheap while matching that scale and
    strength for the branded preset. */
-html[data-theme-id="t3-chat"] {
+html[data-theme-id="orchid"] {
   --surface-grain: url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.02745'/%3E%3C/svg%3E");
   --surface-grain-size: 128px 128px;
 }

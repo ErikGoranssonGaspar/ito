@@ -6,7 +6,7 @@ page loads that static file. It does not depend on a connected environment or an
 ## What the build collects
 
 The generator follows installed production and optional dependencies, including dependencies of
-workspace packages, and omits first-party `@t3tools/*` packages. The renderer manifest starts
+workspace packages, and omits first-party `@ito/*` packages. The renderer manifest starts
 from the web, server, and desktop package manifests. During the bundle, the generator also checks
 emitted module ids to catch a bundled npm import missing from a package manifest.
 

@@ -7,8 +7,8 @@ import {
   type ProviderInstanceId,
   type ServerProvider,
   type ServerProviderModel,
-} from "@t3tools/contracts";
-import { createModelCapabilities, resolveSelectableModel } from "@t3tools/shared/model";
+} from "@ito/contracts";
+import { createModelCapabilities, resolveSelectableModel } from "@ito/shared/model";
 
 const EMPTY_CAPABILITIES: ModelCapabilities = createModelCapabilities({
   optionDescriptors: [],

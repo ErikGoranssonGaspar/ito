@@ -1,7 +1,7 @@
 import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
 import * as NodeSocket from "@effect/platform-node/NodeSocket";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import { HostProcessPlatform } from "@ito/shared/hostProcess";
 
 import {
   type DeviceServiceState,
@@ -44,7 +44,7 @@ import {
   EditorId,
   WorktreeSetupSnapshot,
   type WorktreeSetupStageId,
-} from "@t3tools/contracts";
+} from "@ito/contracts";
 import { assert, it } from "@effect/vitest";
 import { assertFailure, assertInclude, assertTrue } from "@effect/vitest/utils";
 import * as Clock from "effect/Clock";
@@ -147,7 +147,7 @@ import * as PortScanner from "./preview/PortScanner.ts";
 import * as BrowserTraceCollector from "./observability/BrowserTraceCollector.ts";
 import * as NativeAppIconResolver from "./assets/NativeAppIconResolver.ts";
 import * as ProjectFaviconResolver from "./project/ProjectFaviconResolver.ts";
-import * as T3ProjectFileLoader from "./project/T3ProjectFileLoader.ts";
+import * as ItoProjectFileLoader from "./project/ItoProjectFileLoader.ts";
 import * as ProjectSetupScriptRunner from "./project/ProjectSetupScriptRunner.ts";
 import * as RepositoryIdentityResolver from "./project/RepositoryIdentityResolver.ts";
 import * as ServerEnvironment from "./environment/ServerEnvironment.ts";
@@ -207,8 +207,8 @@ import {
   type TransferBudgetRun,
   transferBudgetViolations,
 } from "../integration/TransferBudgetReport.integration.ts";
-import { symlinksSupported } from "@t3tools/shared/testing/symlinks";
-import { otlpSerializationLayer } from "@t3tools/shared/observability";
+import { symlinksSupported } from "@ito/shared/testing/symlinks";
+import { otlpSerializationLayer } from "@ito/shared/observability";
 
 const defaultProjectId = ProjectId.make("project-default");
 const defaultThreadId = ThreadId.make("thread-default");
@@ -474,9 +474,9 @@ const makeBrowserOtlpPayload = (spanName: string) =>
         url: collector.url,
         exportInterval: "10 millis",
         resource: {
-          serviceName: "t3-web",
+          serviceName: "ito-web",
           attributes: {
-            "service.runtime": "t3-web",
+            "service.runtime": "ito-web",
             "service.mode": "browser",
             "service.version": "test",
           },
@@ -549,7 +549,7 @@ const buildAppUnderTest = (options?: {
 }) =>
   Effect.gen(function* () {
     const fileSystem = yield* FileSystem.FileSystem;
-    const tempBaseDir = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-router-test-" });
+    const tempBaseDir = yield* fileSystem.makeTempDirectoryScoped({ prefix: "ito-router-test-" });
     const baseDir = options?.config?.baseDir ?? tempBaseDir;
     const devUrl = options?.config?.devUrl;
     const derivedPaths = yield* ServerConfig.deriveServerPaths(baseDir, devUrl);
@@ -563,7 +563,7 @@ const buildAppUnderTest = (options?: {
       otlpTracesUrl: undefined,
       otlpMetricsUrl: undefined,
       otlpExportIntervalMs: 10_000,
-      otlpServiceName: "t3-server",
+      otlpServiceName: "ito-server",
       otlpHeaders: undefined,
       otlpProtocol: "http/json",
       mode: "desktop",
@@ -699,7 +699,7 @@ const buildAppUnderTest = (options?: {
       ),
       ProjectFaviconResolver.layer.pipe(
         Layer.provide(WorkspacePaths.layer),
-        Layer.provide(T3ProjectFileLoader.layer),
+        Layer.provide(ItoProjectFileLoader.layer),
       ),
       NativeAppIconResolver.layer,
     );
@@ -1526,7 +1526,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const staticDir = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-router-gate-" });
+      const staticDir = yield* fileSystem.makeTempDirectoryScoped({ prefix: "ito-router-gate-" });
       yield* fileSystem.writeFileString(path.join(staticDir, "index.html"), "ready");
       const entered = yield* Deferred.make<void>();
       const ready = yield* Deferred.make<void>();
@@ -1559,7 +1559,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const staticDir = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-router-static-" });
+      const staticDir = yield* fileSystem.makeTempDirectoryScoped({ prefix: "ito-router-static-" });
       const indexPath = path.join(staticDir, "index.html");
       yield* fileSystem.writeFileString(indexPath, "<html>router-static-ok</html>");
 
@@ -1575,7 +1575,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const staticDir = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-static-cache-" });
+      const staticDir = yield* fileSystem.makeTempDirectoryScoped({ prefix: "ito-static-cache-" });
       const assetPath = path.join(staticDir, "app.js");
       yield* fileSystem.writeFileString(assetPath, 'export const build = "first";');
       yield* buildAppUnderTest({ config: { staticDir } });
@@ -1622,7 +1622,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const staticDir = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-static-html-" });
+      const staticDir = yield* fileSystem.makeTempDirectoryScoped({ prefix: "ito-static-html-" });
       const indexPath = path.join(staticDir, "index.html");
       const modifiedAt = DateTime.toDateUtc(DateTime.makeUnsafe("1985-10-26T08:15:00.000Z"));
       yield* fileSystem.writeFileString(indexPath, "<html>old build</html>");
@@ -1662,7 +1662,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const staticDir = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-static-hashes-" });
+      const staticDir = yield* fileSystem.makeTempDirectoryScoped({ prefix: "ito-static-hashes-" });
       yield* fileSystem.makeDirectory(path.join(staticDir, "assets"));
       yield* fileSystem.makeDirectory(path.join(staticDir, ".vite"));
       yield* fileSystem.writeFileString(
@@ -1746,7 +1746,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         const fileSystem = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
         const staticDir = yield* fileSystem.makeTempDirectoryScoped({
-          prefix: "t3-static-mutable-",
+          prefix: "ito-static-mutable-",
         });
         yield* fileSystem.makeDirectory(path.join(staticDir, "assets"));
         if (manifest.contents !== null) {
@@ -1780,7 +1780,9 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const staticDir = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-static-replace-" });
+      const staticDir = yield* fileSystem.makeTempDirectoryScoped({
+        prefix: "ito-static-replace-",
+      });
       const beforeOpenPath = path.join(staticDir, "before-open.txt");
       const afterOpenPath = path.join(staticDir, "after-open.txt");
       const afterOpenSnapshotPath = path.join(staticDir, "after-open-snapshot.txt");
@@ -1844,7 +1846,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const staticDir = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-static-close-" });
+      const staticDir = yield* fileSystem.makeTempDirectoryScoped({ prefix: "ito-static-close-" });
       const filePath = path.join(staticDir, "app.txt");
       const body = "file content\n".repeat(1024);
       yield* fileSystem.writeFileString(filePath, body);
@@ -1942,7 +1944,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     Effect.gen(function* () {
       yield* buildAppUnderTest();
 
-      const url = yield* getHttpServerUrl("/.well-known/t3/environment");
+      const url = yield* getHttpServerUrl("/.well-known/ito/environment");
       const response = yield* fetchEffect(url);
       const body = yield* responseJsonEffect<typeof testEnvironmentDescriptor>(response);
 
@@ -2000,7 +2002,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         },
       });
 
-      const url = yield* getHttpServerUrl("/.well-known/t3/environment");
+      const url = yield* getHttpServerUrl("/.well-known/ito/environment");
       const response = yield* fetchEffect(url, {
         headers: {
           "accept-encoding": "gzip",
@@ -2019,7 +2021,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     Effect.gen(function* () {
       yield* buildAppUnderTest();
 
-      const url = yield* getHttpServerUrl("/.well-known/t3/environment");
+      const url = yield* getHttpServerUrl("/.well-known/ito/environment");
       const response = yield* fetchEffect(url, {
         headers: {
           origin: crossOriginClientOrigin,
@@ -2056,7 +2058,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       assert.deepEqual(body.auth.sessionMethods, ["browser-session-cookie", "bearer-access-token"]);
       // Desktop, so port-scoped: instances scan for a free port and share
       // 127.0.0.1, and cookies are not scoped by port.
-      assert.isTrue(body.auth.sessionCookieName.startsWith("t3_session_"));
+      assert.isTrue(body.auth.sessionCookieName.startsWith("ito_session_"));
     }).pipe(Effect.provide(NodeHttpServer.layerTest)),
   );
 
@@ -2099,7 +2101,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
 
       const { cookie } = yield* bootstrapBrowserSession();
       const currentCookie = cookie?.split(";")[0] ?? "";
-      const legacyCookie = currentCookie.replace(/^t3_session_[^=]+=/, "t3_session=");
+      const legacyCookie = currentCookie.replace(/^ito_session_[^=]+=/, "ito_session=");
       const sessionUrl = yield* getHttpServerUrl("/api/auth/session");
       const response = yield* fetchEffect(sessionUrl, {
         headers: { cookie: legacyCookie },
@@ -2125,8 +2127,8 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         const response = yield* fetchEffect(sessionUrl, {
           headers:
             source === "cookie"
-              ? { cookie: `${sessionCookie}; t3_session=stale` }
-              : { authorization: `Bearer ${sessionToken}`, cookie: "t3_session=stale" },
+              ? { cookie: `${sessionCookie}; ito_session=stale` }
+              : { authorization: `Bearer ${sessionToken}`, cookie: "ito_session=stale" },
         });
         const body = yield* responseJsonEffect<{ readonly authenticated: boolean }>(response);
 
@@ -2233,7 +2235,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         },
         scope: "orchestration:read orchestration:operate terminal:operate review:write",
         clientMetadata: {
-          label: "T3 Code Mobile",
+          label: "Itô Mobile",
           deviceType: "mobile",
           os: "iOS",
         },
@@ -2260,7 +2262,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       assert.equal(response.status, 200);
       assert.equal(clientsResponse.status, 200);
       assert.deepInclude(mobileClient?.client, {
-        label: "T3 Code Mobile",
+        label: "Itô Mobile",
         deviceType: "mobile",
         os: "iOS",
         ipAddress: "127.0.0.1",
@@ -2470,7 +2472,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     }).pipe(Effect.provide(NodeHttpServer.layerTest)),
   );
 
-  for (const desktopOrigin of ["t3code://app", "t3code-dev://app"]) {
+  for (const desktopOrigin of ["ito://app", "ito-dev://app"]) {
     it.effect(`allows credentialed preflights from ${desktopOrigin} in development`, () =>
       Effect.gen(function* () {
         yield* buildAppUnderTest({
@@ -3201,7 +3203,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
               attributes: [
                 {
                   key: "service.name",
-                  value: { stringValue: "t3-web" },
+                  value: { stringValue: "ito-web" },
                 },
               ],
             },
@@ -3343,7 +3345,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
             "rpc.method": "server.getSettings",
           },
           resourceAttributes: {
-            "service.name": "t3-web",
+            "service.name": "ito-web",
           },
           scope: {
             name: "effect",
@@ -3474,7 +3476,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       // the stub's utf8 decode even though the surrounding bytes don't.
       assert.notEqual(forwarded.body[0], "{");
       assert.include(forwarded.body, "client.protobuf.test");
-      assert.include(forwarded.body, "t3-web");
+      assert.include(forwarded.body, "ito-web");
     }).pipe(Effect.provide(NodeHttpServer.layerTest)),
   );
 
@@ -3574,7 +3576,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         assert.deepEqual(record.links, []);
         assert.equal(record.scope.name, scopeSpan.scope.name);
         assert.deepEqual(record.scope.attributes, {});
-        assert.equal(record.resourceAttributes["service.name"], "t3-web");
+        assert.equal(record.resourceAttributes["service.name"], "ito-web");
         assert.equal(record.status?.code, String(span.status.code));
       }).pipe(Effect.provide(NodeHttpServer.layerTest)),
   );
@@ -3675,10 +3677,10 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       const fileSystem = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const codexHome = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-agent-import-rpc-codex-",
+        prefix: "ito-agent-import-rpc-codex-",
       });
       const workspaceRoot = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-agent-import-rpc-workspace-",
+        prefix: "ito-agent-import-rpc-workspace-",
       });
       const transcriptDirectory = path.join(codexHome, "sessions", "2026", "08", "31");
       const transcriptPath = path.join(transcriptDirectory, "rollout-skipped.jsonl");
@@ -3778,7 +3780,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       yield* buildAppUnderTest();
       const fileSystem = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const directory = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-host-media-" });
+      const directory = yield* fileSystem.makeTempDirectoryScoped({ prefix: "ito-host-media-" });
       const wsUrl = yield* getWsServerUrl("/ws");
       const threadId = ThreadId.make("thread-on-another-environment");
 
@@ -3816,7 +3818,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       const fileSystem = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const wsUrl = yield* getWsServerUrl("/ws");
-      const directory = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-draft-media-" });
+      const directory = yield* fileSystem.makeTempDirectoryScoped({ prefix: "ito-draft-media-" });
       yield* fileSystem.writeFileString(path.join(directory, "note.html"), "<p>draft</p>");
 
       yield* Effect.scoped(
@@ -4069,7 +4071,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const workspaceDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-ws-auth-required-" });
+      const workspaceDir = yield* fs.makeTempDirectoryScoped({ prefix: "ito-ws-auth-required-" });
       yield* fs.writeFileString(
         path.join(workspaceDir, "needle-file.ts"),
         "export const needle = 1;",
@@ -5049,7 +5051,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const workspaceDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-ws-project-search-" });
+      const workspaceDir = yield* fs.makeTempDirectoryScoped({ prefix: "ito-ws-project-search-" });
       yield* fs.writeFileString(
         path.join(workspaceDir, "needle-file.ts"),
         "export const needle = 1;",
@@ -5078,7 +5080,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const workspaceDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-ws-project-files-" });
+      const workspaceDir = yield* fs.makeTempDirectoryScoped({ prefix: "ito-ws-project-files-" });
       yield* fs.makeDirectory(path.join(workspaceDir, "src"), { recursive: true });
       yield* fs.writeFileString(
         path.join(workspaceDir, "src", "index.ts"),
@@ -5115,7 +5117,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const workspaceDir = yield* fs.makeTempDirectoryScoped({
-        prefix: "t3-ws-project-search-gitignored-",
+        prefix: "ito-ws-project-search-gitignored-",
       });
       yield* fs.writeFileString(path.join(workspaceDir, ".gitignore"), ".venv/\n");
       yield* fs.makeDirectory(path.join(workspaceDir, ".venv", "lib"), { recursive: true });
@@ -5172,10 +5174,10 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const workspaceDir = yield* fs.makeTempDirectoryScoped({
-        prefix: "t3-ws-workspace-errors-",
+        prefix: "ito-ws-workspace-errors-",
       });
       const outsideDir = yield* fs.makeTempDirectoryScoped({
-        prefix: "t3-ws-workspace-errors-outside-",
+        prefix: "ito-ws-workspace-errors-outside-",
       });
       const outsideFile = path.join(outsideDir, "outside.txt");
       yield* fs.writeFileString(outsideFile, "outside\n");
@@ -5285,7 +5287,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const blockedRoot = yield* fs.makeTempDirectoryScoped({
-        prefix: "t3-ws-workspace-stat-error-",
+        prefix: "ito-ws-workspace-stat-error-",
       });
       const workspaceRoot = path.join(blockedRoot, "workspace");
       yield* fs.makeDirectory(workspaceRoot);
@@ -5315,7 +5317,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const workspaceDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-ws-project-write-" });
+      const workspaceDir = yield* fs.makeTempDirectoryScoped({ prefix: "ito-ws-project-write-" });
 
       yield* buildAppUnderTest();
 
@@ -5340,7 +5342,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const parentDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-ws-project-create-" });
+      const parentDir = yield* fs.makeTempDirectoryScoped({ prefix: "ito-ws-project-create-" });
       const missingWorkspaceRoot = path.join(parentDir, "nested", "new-project");
 
       yield* buildAppUnderTest();
@@ -5374,8 +5376,8 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const parentDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-ws-project-clone-" });
-      const destinationPath = path.join(parentDir, "t3code");
+      const parentDir = yield* fs.makeTempDirectoryScoped({ prefix: "ito-ws-project-clone-" });
+      const destinationPath = path.join(parentDir, "ito");
       const projectId = ProjectId.make("project-clone-1");
       const dispatched: Array<string> = [];
       const cloneGate = yield* Deferred.make<void>();
@@ -5422,9 +5424,9 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
           Effect.gen(function* () {
             const started = yield* client[WS_METHODS.projectCloneStart]({
               projectId,
-              title: "t3code",
+              title: "ito",
               createdAt: "2026-01-01T00:00:00.000Z",
-              remoteUrl: "git@github.com:octocat/t3code.git",
+              remoteUrl: "git@github.com:octocat/ito.git",
               destinationPath,
             });
             assert.equal(started.cwd, destinationPath);
@@ -5697,7 +5699,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
   it.effect("routes websocket rpc projects.writeFile errors", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
-      const workspaceDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-ws-project-write-" });
+      const workspaceDir = yield* fs.makeTempDirectoryScoped({ prefix: "ito-ws-project-write-" });
 
       yield* buildAppUnderTest();
 
@@ -8954,7 +8956,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
             isRepo: true,
             hasPrimaryRemote: true,
             isDefaultRef: false,
-            refName: "t3code/bootstrap-refName",
+            refName: "ito/bootstrap-refName",
             hasWorkingTreeChanges: false,
             workingTree: {
               files: [],
@@ -9004,7 +9006,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
               bootstrapGitOperations.push("create-worktree");
               return {
                 worktree: {
-                  refName: "t3code/bootstrap-refName",
+                  refName: "ito/bootstrap-refName",
                   path: "/tmp/bootstrap-worktree",
                 },
               };
@@ -9088,7 +9090,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
                 prepareWorktree: {
                   projectCwd: "/tmp/project",
                   baseBranch: "main",
-                  branch: "t3code/bootstrap-refName",
+                  branch: "ito/bootstrap-refName",
                   startFromOrigin: true,
                 },
                 runSetupScript: true,
@@ -9128,7 +9130,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         assert.deepEqual(createWorktree.mock.calls[0]?.[0], {
           cwd: "/tmp/project",
           refName: fetchedOriginCommit,
-          newRefName: "t3code/bootstrap-refName",
+          newRefName: "ito/bootstrap-refName",
           baseRefName: "main",
           path: null,
         });
@@ -9233,7 +9235,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         (_: Parameters<GitVcsDriver.GitVcsDriver["Service"]["createWorktree"]>[0]) =>
           Effect.succeed({
             worktree: {
-              refName: "t3code/bootstrap-refName",
+              refName: "ito/bootstrap-refName",
               path: "/tmp/bootstrap-worktree",
             },
           }),
@@ -9294,7 +9296,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
               prepareWorktree: {
                 projectCwd: "/tmp/project",
                 baseBranch: "main",
-                branch: "t3code/bootstrap-refName",
+                branch: "ito/bootstrap-refName",
                 startFromOrigin: true,
               },
             },
@@ -9320,7 +9322,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       assert.deepEqual(createWorktree.mock.calls[0]?.[0], {
         cwd: "/tmp/project",
         refName: "main",
-        newRefName: "t3code/bootstrap-refName",
+        newRefName: "ito/bootstrap-refName",
         baseRefName: "main",
         path: null,
       });
@@ -9479,7 +9481,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
               prepareWorktree: {
                 projectCwd: "/tmp/project",
                 baseBranch: "main",
-                branch: "t3code/bootstrap-refName",
+                branch: "ito/bootstrap-refName",
               },
               runSetupScript: true,
             },
@@ -9572,7 +9574,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
               prepareWorktree: {
                 projectCwd: "/tmp/project",
                 baseBranch: "main",
-                branch: "t3code/bootstrap-refName",
+                branch: "ito/bootstrap-refName",
               },
               runSetupScript: true,
             },
@@ -9603,7 +9605,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         (_: Parameters<GitVcsDriver.GitVcsDriver["Service"]["createWorktree"]>[0]) =>
           Effect.succeed({
             worktree: {
-              refName: "t3code/bootstrap-refName",
+              refName: "ito/bootstrap-refName",
               path: "/tmp/bootstrap-worktree",
             },
           }),
@@ -9678,7 +9680,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
               prepareWorktree: {
                 projectCwd: "/tmp/project",
                 baseBranch: "main",
-                branch: "t3code/bootstrap-refName",
+                branch: "ito/bootstrap-refName",
               },
               runSetupScript: true,
             },
@@ -9721,7 +9723,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         (_: Parameters<GitVcsDriver.GitVcsDriver["Service"]["createWorktree"]>[0]) =>
           Effect.succeed({
             worktree: {
-              refName: "t3code/bootstrap-refName",
+              refName: "ito/bootstrap-refName",
               path: "/tmp/bootstrap-worktree",
             },
           }),
@@ -9814,7 +9816,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
               prepareWorktree: {
                 projectCwd: "/tmp/project",
                 baseBranch: "main",
-                branch: "t3code/bootstrap-refName",
+                branch: "ito/bootstrap-refName",
               },
               runSetupScript: true,
             },
@@ -9900,7 +9902,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
             createWorktree: () =>
               Effect.succeed({
                 worktree: {
-                  refName: "t3code/bootstrap-refName",
+                  refName: "ito/bootstrap-refName",
                   path: "/tmp/bootstrap-worktree",
                 },
               }),
@@ -9951,7 +9953,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
               prepareWorktree: {
                 projectCwd: "/tmp/project",
                 baseBranch: "main",
-                branch: "t3code/bootstrap-refName",
+                branch: "ito/bootstrap-refName",
               },
               runSetupScript: true,
             },
@@ -10121,7 +10123,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
                 prepareWorktree: {
                   projectCwd: "/tmp/project",
                   baseBranch: "main",
-                  branch: "t3code/bootstrap-refName",
+                  branch: "ito/bootstrap-refName",
                 },
                 runSetupScript: false,
               },
@@ -10332,7 +10334,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
               prepareWorktree: {
                 projectCwd: "/tmp/project",
                 baseBranch: "main",
-                branch: "t3code/bootstrap-refName",
+                branch: "ito/bootstrap-refName",
               },
               runSetupScript: false,
             },
@@ -10768,14 +10770,14 @@ it.live(
 
       const report = formatTransferBudgetReport(runs);
       yield* Effect.logInfo(`\n${report}`);
-      const reportPath = yield* Config.string("T3CODE_TRANSFER_BUDGET_REPORT_PATH").pipe(
+      const reportPath = yield* Config.string("ITO_TRANSFER_BUDGET_REPORT_PATH").pipe(
         Config.option,
       );
       if (Option.isSome(reportPath)) {
         const fileSystem = yield* FileSystem.FileSystem;
         yield* fileSystem.writeFileString(reportPath.value, report);
       }
-      const resultPath = yield* Config.string("T3CODE_TRANSFER_BUDGET_RESULT_PATH").pipe(
+      const resultPath = yield* Config.string("ITO_TRANSFER_BUDGET_RESULT_PATH").pipe(
         Config.option,
       );
       if (Option.isSome(resultPath)) {

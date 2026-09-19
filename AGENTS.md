@@ -1,6 +1,6 @@
-# Ito
+# Itô
 
-Ito is a personal macOS desktop prototype for an AI-assisted applied mathematics
+Itô is a personal macOS desktop prototype for an AI-assisted applied mathematics
 workspace, built from a reduced fork of T3 Code. Read `ITO_VISION.md` for the long-term
 direction.
 
@@ -14,14 +14,16 @@ what remains unfinished.
 - A desktop window on this Mac, with its local bundled server and React renderer.
 - All existing coding-agent providers; terminal, file editing, Git diffs, worktrees, and
   checkpoints.
-- SSH environments and the environment registry: Ito can reach servers on other machines,
+- SSH environments and the environment registry: Itô can reach servers on other machines,
   it just has no hosted account or relay.
 - GitHub pull-request tools, MCP/external tools, embedded browser, screen capture,
   notifications, and local usage views until the owner has tried them.
 - Run from source. No mobile app, marketing site, hosted web app, relay, T3 account or
   cloud service, updater, or release pipeline.
-- Preserve existing local `.t3` data and settings. Never start a server against
-  `~/.t3/userdata` or edit that live directory.
+- Preserve existing local state. The app copies `~/.t3` and the old Application
+  Support directories to their `~/.ito` counterparts on first run and leaves the
+  originals alone. Never start a server against `~/.ito/userdata` or `~/.t3/userdata`,
+  or edit either live directory.
 
 ## Structure
 
@@ -36,7 +38,7 @@ what remains unfinished.
 ## Running it
 
 ```bash
-pnpm dev     # run from source; pins state to this checkout's .t3
+pnpm dev     # run from source; pins state to this checkout's .ito
 pnpm build   # build the desktop app
 ```
 
@@ -72,7 +74,7 @@ has not recurred. Anything else is new.
 
 - Do not kill processes by a name/path match. Stop only a process you started and
   tracked, or a process group you created.
-- Use a separate, gitignored `.t3` state directory for dev. Copy live data into it only
+- Use a separate, gitignored `.ito` state directory for dev. Copy live data into it only
   with a consistent SQLite snapshot, and never symlink live data.
 - Do not launch browser or computer-use verification without the owner's agreement.
 - Do not create a pull request unless explicitly asked.

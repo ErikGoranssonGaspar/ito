@@ -1,5 +1,5 @@
 {
-  "name": "@t3tools/scripts",
+  "name": "@ito/scripts",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@effect/platform-node": "catalog:",
-    "@t3tools/shared": "workspace:*",
+    "@ito/shared": "workspace:*",
     "effect": "catalog:"
   },
   "devDependencies": {

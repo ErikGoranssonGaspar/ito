@@ -1,4 +1,4 @@
-import { ProjectId, type PullRequestSummary, type VcsStatusResult } from "@t3tools/contracts";
+import { ProjectId, type PullRequestSummary, type VcsStatusResult } from "@ito/contracts";
 import { describe, expect, it } from "@effect/vitest";
 
 import {
@@ -34,7 +34,7 @@ function status(overrides: Partial<VcsStatusResult> = {}): VcsStatusResult {
     pr: {
       number: 42,
       title: "PR branch",
-      url: "https://github.com/pingdotgg/t3code/pull/42",
+      url: "https://github.com/pingdotgg/ito/pull/42",
       baseRef: "main",
       headRef: "feature/current",
       state: "open",
@@ -50,10 +50,10 @@ function pullRequestSummary(
   return {
     provider: "github",
     projectId: ProjectId.make("project-1"),
-    repository: "pingdotgg/t3code",
+    repository: "pingdotgg/ito",
     number: 42,
     title: "Feature PR",
-    url: "https://github.com/pingdotgg/t3code/pull/42",
+    url: "https://github.com/pingdotgg/ito/pull/42",
     state,
     headBranch: "feature/current",
     baseBranch: "main",
@@ -115,7 +115,7 @@ describe("prStatusIndicator", () => {
 });
 
 describe("resolveThreadPullRequestBadgePresentation", () => {
-  const url = "https://github.com/pingdotgg/t3code/pull/42";
+  const url = "https://github.com/pingdotgg/ito/pull/42";
 
   it("returns the pending pull-request badge when no snapshot is available", () => {
     expect(

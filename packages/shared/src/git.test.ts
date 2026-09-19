@@ -1,4 +1,4 @@
-import type { VcsStatusRemoteResult, VcsStatusResult } from "@t3tools/contracts";
+import type { VcsStatusRemoteResult, VcsStatusResult } from "@ito/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -13,23 +13,17 @@ import {
 
 describe("normalizeGitRemoteUrl", () => {
   it("canonicalizes equivalent GitHub remotes across protocol variants", () => {
-    expect(normalizeGitRemoteUrl("git@github.com:T3Tools/T3Code.git")).toBe(
-      "github.com/t3tools/t3code",
-    );
-    expect(normalizeGitRemoteUrl("https://github.com/T3Tools/T3Code.git")).toBe(
-      "github.com/t3tools/t3code",
-    );
-    expect(normalizeGitRemoteUrl("ssh://git@github.com/T3Tools/T3Code")).toBe(
-      "github.com/t3tools/t3code",
-    );
+    expect(normalizeGitRemoteUrl("git@github.com:Ito/Ito.git")).toBe("github.com/ito/ito");
+    expect(normalizeGitRemoteUrl("https://github.com/Ito/Ito.git")).toBe("github.com/ito/ito");
+    expect(normalizeGitRemoteUrl("ssh://git@github.com/Ito/Ito")).toBe("github.com/ito/ito");
   });
 
   it("preserves nested group paths for providers like GitLab", () => {
-    expect(normalizeGitRemoteUrl("git@gitlab.com:T3Tools/platform/T3Code.git")).toBe(
-      "gitlab.com/t3tools/platform/t3code",
+    expect(normalizeGitRemoteUrl("git@gitlab.com:Ito/platform/Ito.git")).toBe(
+      "gitlab.com/ito/platform/ito",
     );
-    expect(normalizeGitRemoteUrl("https://gitlab.com/T3Tools/platform/T3Code.git")).toBe(
-      "gitlab.com/t3tools/platform/t3code",
+    expect(normalizeGitRemoteUrl("https://gitlab.com/Ito/platform/Ito.git")).toBe(
+      "gitlab.com/ito/platform/ito",
     );
   });
 
@@ -60,12 +54,12 @@ describe("parseOriginUrlFromGitConfig", () => {
       '[remote "upstream"]',
       "\turl = https://github.com/other/repo.git",
       '[remote "origin"]',
-      "\turl = git@github.com:pingdotgg/t3code.git",
+      "\turl = git@github.com:pingdotgg/ito.git",
       "\tfetch = +refs/heads/*:refs/remotes/origin/*",
       '[branch "main"]',
       "\tremote = origin",
     ].join("\n");
-    expect(parseOriginUrlFromGitConfig(config)).toBe("git@github.com:pingdotgg/t3code.git");
+    expect(parseOriginUrlFromGitConfig(config)).toBe("git@github.com:pingdotgg/ito.git");
   });
 
   it("strips inline comments and quotes from the url value", () => {
@@ -120,15 +114,15 @@ describe("parseOriginUrlFromGitConfig", () => {
 
 describe("parseGitHubRepositoryNameWithOwnerFromRemoteUrl", () => {
   it("extracts the owner and repository from common GitHub remote shapes", () => {
-    expect(
-      parseGitHubRepositoryNameWithOwnerFromRemoteUrl("git@github.com:T3Tools/T3Code.git"),
-    ).toBe("T3Tools/T3Code");
-    expect(
-      parseGitHubRepositoryNameWithOwnerFromRemoteUrl("https://github.com/T3Tools/T3Code.git"),
-    ).toBe("T3Tools/T3Code");
-    expect(
-      parseGitHubRepositoryNameWithOwnerFromRemoteUrl("ssh://github.com/T3Tools/T3Code.git"),
-    ).toBe("T3Tools/T3Code");
+    expect(parseGitHubRepositoryNameWithOwnerFromRemoteUrl("git@github.com:Ito/Ito.git")).toBe(
+      "Ito/Ito",
+    );
+    expect(parseGitHubRepositoryNameWithOwnerFromRemoteUrl("https://github.com/Ito/Ito.git")).toBe(
+      "Ito/Ito",
+    );
+    expect(parseGitHubRepositoryNameWithOwnerFromRemoteUrl("ssh://github.com/Ito/Ito.git")).toBe(
+      "Ito/Ito",
+    );
   });
 });
 

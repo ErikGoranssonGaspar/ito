@@ -30,7 +30,10 @@ describe("isTransportConnectionErrorMessage", () => {
     expect(isTransportConnectionErrorMessage("ClientProtocolError: socket closed")).toBe(true);
   });
 
-  it("returns true for the T3 server WebSocket message", () => {
+  it("returns true for a server WebSocket message under either product name", () => {
+    expect(
+      isTransportConnectionErrorMessage("Unable to connect to the Itô server WebSocket."),
+    ).toBe(true);
     expect(isTransportConnectionErrorMessage("Unable to connect to the T3 server WebSocket.")).toBe(
       true,
     );

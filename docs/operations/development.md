@@ -7,14 +7,14 @@ pnpm install
 pnpm dev
 ```
 
-The root dev command starts the Electron app, its React renderer, and its local server. It pins state to this checkout's gitignored `.t3` directory. Never point a development server at the live `~/.t3/userdata` directory. Preserve `.t3` when cleaning or switching branches; it contains local threads and settings.
+The root dev command starts the Electron app, its React renderer, and its local server. It pins state to this checkout's gitignored `.ito` directory. Never point a development server at the live `~/.ito/userdata` directory. Preserve `.ito` when cleaning or switching branches; it contains local threads and settings.
 
 Read ports from the `[dev-runner]` line in the startup log. Worktrees derive a stable port offset from their path; an occupied port can shift it. To inspect a build without launching Electron, run `pnpm build`.
 
 Use focused checks for changed packages and files:
 
 ```sh
-pnpm exec vp run --filter @t3tools/desktop --filter @t3tools/web --filter t3 typecheck
+pnpm exec vp run --filter @ito/desktop --filter @ito/web --filter @ito/server typecheck
 pnpm exec vp test run <test-file>
 ```
 

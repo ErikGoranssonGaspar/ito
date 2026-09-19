@@ -11,9 +11,9 @@
  *
  * @module BrowserImportSources
  */
-import type { BrowserImportSourceId, BrowserImportSourceProfile } from "@t3tools/contracts";
-import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
-import { HostProcessEnvironment, HostProcessHostname } from "@t3tools/shared/hostProcess";
+import type { BrowserImportSourceId, BrowserImportSourceProfile } from "@ito/contracts";
+import * as NodeSqliteClient from "@ito/shared/nodeSqliteClient";
+import { HostProcessEnvironment, HostProcessHostname } from "@ito/shared/hostProcess";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";

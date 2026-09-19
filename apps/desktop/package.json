@@ -1,5 +1,5 @@
 {
-  "name": "@t3tools/desktop",
+  "name": "@ito/desktop",
   "version": "0.0.42",
   "private": true,
   "type": "module",
@@ -14,12 +14,12 @@
   "dependencies": {
     "@crowecawcaw/xa11y": "0.13.0",
     "@effect/platform-node": "catalog:",
+    "@ito/client-runtime": "workspace:*",
+    "@ito/contracts": "workspace:*",
+    "@ito/shared": "workspace:*",
+    "@ito/ssh": "workspace:*",
+    "@ito/tailscale": "workspace:*",
     "@napi-rs/keyring": "^1.3.0",
-    "@t3tools/client-runtime": "workspace:*",
-    "@t3tools/contracts": "workspace:*",
-    "@t3tools/shared": "workspace:*",
-    "@t3tools/ssh": "workspace:*",
-    "@t3tools/tailscale": "workspace:*",
     "effect": "catalog:",
     "electron": "44.1.0",
     "playwright-core": "1.60.0",
@@ -33,5 +33,5 @@
     "tailwindcss": "^4.0.0",
     "vite-plus": "catalog:"
   },
-  "productName": "T3 Code (Alpha)"
+  "productName": "Itô"
 }

@@ -12,9 +12,9 @@ import {
   SystemSettingsPaneSchema,
   type DesktopEnvironmentBootstrap,
   type PickedThemeFile,
-} from "@t3tools/contracts";
-import { WORKSPACE_IMAGE_PREVIEW_EXTENSIONS } from "@t3tools/shared/filePreview";
-import { isCommandAvailable } from "@t3tools/shared/shell";
+} from "@ito/contracts";
+import { WORKSPACE_IMAGE_PREVIEW_EXTENSIONS } from "@ito/shared/filePreview";
+import { isCommandAvailable } from "@ito/shared/shell";
 import * as NodeOS from "node:os";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
