@@ -28,23 +28,27 @@ export class DesktopStateMigrationError extends Schema.TaggedError<DesktopStateM
   }
 }
 
+const BASE_DIR_NAME = ".ito";
+const LEGACY_BASE_DIR_NAME = ".t3";
+
 /**
  * The directories to carry over, in the order they should be tried. Electron's
  * user data moved twice upstream — an unpackaged `t3code` alongside a packaged
  * "T3 Code (Alpha)" — so the caller passes both and the first one that exists
  * wins.
  *
- * A configured base directory (`ITO_HOME`, or the dev runner pinning state to
- * the checkout) is left alone: it was chosen deliberately and has no legacy
- * counterpart to inherit from.
+ * The base directory is carried over whenever it is one this app named itself:
+ * `~/.ito`, or the `.ito` the dev runner pins to a checkout. Both were `.t3`
+ * before the rebrand, so both have a counterpart to inherit. A base directory
+ * the owner pointed somewhere else through `ITO_HOME` is left alone — it was
+ * chosen deliberately and nothing renamed it.
  */
 export function resolveStateMigrations(input: {
   readonly appDataDirectory: string;
   readonly userDataDirName: string;
   readonly legacyUserDataDirNames: ReadonlyArray<string>;
-  readonly homeDirectory: string;
+  readonly baseDir: string;
   readonly stateDir: string;
-  readonly isBaseDirConfigured: boolean;
   readonly joinPath: JoinPath;
 }): ReadonlyArray<StateMigration> {
   const userDataTarget = input.joinPath(input.appDataDirectory, input.userDataDirName);
@@ -53,21 +57,17 @@ export function resolveStateMigrations(input: {
     target: userDataTarget,
   }));
 
-  if (input.isBaseDirConfigured) {
+  const parent = input.baseDir.slice(0, -BASE_DIR_NAME.length);
+  const named = input.baseDir.endsWith(BASE_DIR_NAME) && /[/\\]$/.test(parent);
+  const leaf = input.stateDir.slice(input.baseDir.length);
+  if (!named || !input.stateDir.startsWith(input.baseDir) || leaf.length === 0) {
     return userDataMigrations;
   }
 
-  const itoBaseDir = input.joinPath(input.homeDirectory, ".ito");
-  if (!input.stateDir.startsWith(itoBaseDir)) {
-    return userDataMigrations;
-  }
-
-  const legacyStateDir = input.joinPath(
-    input.homeDirectory,
-    ".t3",
-    input.stateDir.slice(itoBaseDir.length + 1),
-  );
-  return [...userDataMigrations, { source: legacyStateDir, target: input.stateDir }];
+  return [
+    ...userDataMigrations,
+    { source: `${parent}${LEGACY_BASE_DIR_NAME}${leaf}`, target: input.stateDir },
+  ];
 }
 
 /**
@@ -83,9 +83,8 @@ export const migrateLegacyState = Effect.gen(function* () {
     appDataDirectory: environment.appDataDirectory,
     userDataDirName: environment.userDataDirName,
     legacyUserDataDirNames: environment.legacyUserDataDirNames,
-    homeDirectory: environment.homeDirectory,
+    baseDir: environment.baseDir,
     stateDir: environment.stateDir,
-    isBaseDirConfigured: environment.isBaseDirConfigured,
     joinPath: environment.path.join,
   });
 

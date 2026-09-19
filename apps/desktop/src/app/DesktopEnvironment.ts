@@ -8,11 +8,7 @@ import * as Path from "effect/Path";
 
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
 import * as DesktopConfig from "./DesktopConfig.ts";
-import {
-  isConfiguredBaseDir,
-  resolveDesktopBaseDir,
-  resolveDesktopStateDir,
-} from "./DesktopStatePaths.ts";
+import { resolveDesktopBaseDir, resolveDesktopStateDir } from "./DesktopStatePaths.ts";
 import type { OtlpProtocol } from "@ito/shared/observability";
 
 export interface MakeDesktopEnvironmentInput {
@@ -41,7 +37,6 @@ export class DesktopEnvironment extends Context.Service<
     readonly homeDirectory: string;
     readonly appDataDirectory: string;
     readonly baseDir: string;
-    readonly isBaseDirConfigured: boolean;
     readonly stateDir: string;
     readonly desktopSettingsPath: string;
     readonly clientSettingsPath: string;
@@ -157,7 +152,6 @@ const make = Effect.fn("desktop.environment.make")(function* (
     homeDirectory,
     appDataDirectory,
     baseDir,
-    isBaseDirConfigured: isConfiguredBaseDir(config.itoHome),
     stateDir,
     desktopSettingsPath: path.join(stateDir, "desktop-settings.json"),
     clientSettingsPath: path.join(stateDir, "client-settings.json"),

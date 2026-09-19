@@ -2,10 +2,6 @@ import * as Option from "effect/Option";
 
 export type JoinPath = (first: string, ...segments: string[]) => string;
 
-export function isConfiguredBaseDir(itoHome: Option.Option<string>): boolean {
-  return Option.isSome(normalizeConfiguredBaseDir(itoHome));
-}
-
 function normalizeConfiguredBaseDir(itoHome: Option.Option<string>): Option.Option<string> {
   if (Option.isNone(itoHome)) {
     return Option.none();

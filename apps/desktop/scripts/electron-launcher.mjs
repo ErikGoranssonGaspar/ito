@@ -331,9 +331,21 @@ function readJson(path) {
   }
 }
 
+/**
+ * `codesign` dies with SIGBUS, before printing anything, when a bundle's main
+ * executable file name is not ASCII — so "Itô Launcher" cannot be the file on
+ * disk. The bundle directory may keep the accent; only this name may not. The
+ * user-visible name lives in CFBundleName and CFBundleDisplayName either way.
+ */
+export function toAsciiExecutableName(displayName) {
+  const folded = displayName.normalize("NFD").replaceAll(/[̀-ͯ]/g, "");
+  const ascii = folded.replaceAll(/[^\x20-\x7e]/g, "").trim();
+  return ascii.length > 0 ? ascii : "App";
+}
+
 export function resolveMacLauncherPaths(appBundlePath, displayName = APP_DISPLAY_NAME) {
   const executableDir = NodePath.posix.join(appBundlePath, "Contents", "MacOS");
-  const launcherExecutableName = `${displayName} Launcher`;
+  const launcherExecutableName = `${toAsciiExecutableName(displayName)} Launcher`;
   return {
     launcherExecutableName,
     launcherBinaryPath: NodePath.posix.join(executableDir, launcherExecutableName),

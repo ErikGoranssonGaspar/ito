@@ -26,6 +26,13 @@ export class DesktopAppIdentity extends Context.Service<
   }
 >()("@ito/desktop/app/DesktopAppIdentity") {}
 
+/** The product name with its accents folded away, for headers and other ASCII wire formats. */
+const asciiProductName = (value: string): string => {
+  const folded = value.normalize("NFD").replaceAll(/[\u0300-\u036f]/g, "");
+  const ascii = folded.replaceAll(/[^\x21-\x7e]/g, "");
+  return ascii.length > 0 ? ascii : "App";
+};
+
 const normalizeCommitHash = (value: string): Option.Option<string> => {
   const trimmed = value.trim();
   return COMMIT_HASH_PATTERN.test(trimmed)
@@ -95,6 +102,12 @@ export const make = Effect.gen(function* () {
   const configure = Effect.gen(function* () {
     const commitHash = yield* resolveAboutCommitHash;
     yield* electronApp.setName(environment.displayName);
+    // Electron derives its default user agent from the app name, and a header
+    // value has to be ASCII — an accented name makes every fetch in the main
+    // process throw on `new Headers`. The product name is not a wire format.
+    yield* electronApp.setUserAgentFallback(
+      `${asciiProductName(environment.branding.baseName)}/${environment.appVersion}`,
+    );
     yield* electronApp.setAboutPanelOptions({
       applicationName: environment.displayName,
       applicationVersion: environment.appVersion,

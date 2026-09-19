@@ -36,6 +36,7 @@ const electronAppLayer = Layer.succeed(ElectronApp.ElectronApp, {
   relaunch: () => Effect.void,
   setPath: () => Effect.void,
   setName: () => Effect.void,
+  setUserAgentFallback: () => Effect.void,
   setAboutPanelOptions: () => Effect.void,
   setAppUserModelId: () => Effect.void,
   getAppMetrics: Effect.succeed([]),
