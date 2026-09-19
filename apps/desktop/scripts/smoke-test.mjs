@@ -54,6 +54,14 @@ console.log("\nLaunching Electron smoke test...");
 console.log(`  state directory: ${stateHome}`);
 console.log(`  user data directory: ${userDataHome}`);
 
+// A terminal hosted by an Electron app (Itô's own, among others) exports
+// ELECTRON_RUN_AS_NODE to its children. Inherited, it puts this launch in Node
+// mode, where `require("electron")` resolves to nothing and the app dies during
+// bootstrap on the first main-process API it touches. The dev and start scripts
+// drop it for the same reason.
+const childEnv = { ...process.env };
+delete childEnv.ELECTRON_RUN_AS_NODE;
+
 const electronCommand = resolveElectronLaunchCommand([mainJs]);
 const child = NodeChildProcess.spawn(electronCommand.electronPath, electronCommand.args, {
   stdio: ["ignore", "pipe", "pipe"],
@@ -62,7 +70,7 @@ const child = NodeChildProcess.spawn(electronCommand.electronPath, electronComma
   // the group this script created is signalled.
   detached: true,
   env: {
-    ...process.env,
+    ...childEnv,
     ITO_HOME: stateHome,
     ITO_DESKTOP_USER_DATA_DIR: userDataHome,
     VITE_DEV_SERVER_URL: "",

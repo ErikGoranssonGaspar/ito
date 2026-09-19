@@ -178,3 +178,19 @@ describe("electron development launcher", () => {
     assert.equal(production.generatedIconPath, "/runtime/icon-prod.icns");
   });
 });
+
+describe("electron launch scripts", () => {
+  // A terminal hosted by an Electron app exports ELECTRON_RUN_AS_NODE, and an
+  // Electron that inherits it starts as Node: `require("electron")` resolves to
+  // nothing and the app dies during bootstrap. Every script that spawns the
+  // runtime has to drop it, and the smoke test did not until it failed this way.
+  it.each(["dev-electron.mjs", "start-electron.mjs", "smoke-test.mjs"])(
+    "%s drops ELECTRON_RUN_AS_NODE before spawning Electron",
+    (scriptName) => {
+      const source = NodeFS.readFileSync(NodePath.join(import.meta.dirname, scriptName), "utf8");
+
+      assert.include(source, "delete childEnv.ELECTRON_RUN_AS_NODE;");
+      assert.notInclude(source, "...process.env,");
+    },
+  );
+});
