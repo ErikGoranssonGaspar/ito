@@ -7,6 +7,7 @@ import { assert, describe, it } from "vite-plus/test";
 import {
   makeDevelopmentEnvironmentScript,
   makeDevelopmentLauncherScript,
+  makeProductionLauncherScript,
   resolveElectronBinaryPath,
   resolveMacBundleInfoPlistStrings,
   resolveMacCodeSignArguments,
@@ -53,6 +54,25 @@ describe("electron development launcher", () => {
       script,
       "exec '/repo/node_modules/electron/Electron' --ito-dev-root='/repo/apps/desktop' '/repo/apps/desktop/dist-electron/main.cjs' \"$@\"",
     );
+  });
+
+  it("bakes the entry point into the production stub and refuses a dev environment", () => {
+    // Finder, the Dock and Spotlight pass no arguments, so the stub must carry
+    // the entry point itself; an inherited VITE_DEV_SERVER_URL would otherwise
+    // flip a bundle that declares the production identity into dev mode.
+    const script = makeProductionLauncherScript({
+      electronBinaryPath: "/repo/apps/desktop/.electron-runtime/Itô.app/Contents/MacOS/Electron",
+      mainEntryPath: "/repo/apps/desktop/dist-electron/main.cjs",
+    });
+
+    assert.include(script, "unset VITE_DEV_SERVER_URL");
+    assert.include(
+      script,
+      "exec '/repo/apps/desktop/.electron-runtime/Itô.app/Contents/MacOS/Electron' '/repo/apps/desktop/dist-electron/main.cjs' \"$@\"",
+    );
+    // The dev root marker and the environment file belong to development only.
+    assert.notInclude(script, "--ito-dev-root");
+    assert.notInclude(script, "dev-environment.sh");
   });
 
   it("repairs Electron before loading the package entrypoint", () => {
