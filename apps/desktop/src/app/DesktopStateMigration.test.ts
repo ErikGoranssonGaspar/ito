@@ -17,6 +17,7 @@ describe("resolveStateMigrations", () => {
   const base = {
     appDataDirectory: "/Users/alice/Library/Application Support",
     userDataDirName: "ito",
+    userDataDirOverridden: false,
     legacyUserDataDirNames: ["T3 Code (Alpha)", "t3code"],
     baseDir: "/Users/alice/.ito",
     stateDir: "/Users/alice/.ito/userdata",
@@ -35,6 +36,19 @@ describe("resolveStateMigrations", () => {
         source: "/Users/alice/Library/Application Support/t3code",
         target: "/Users/alice/Library/Application Support/ito",
       },
+    ]);
+  });
+
+  it("seeds nothing into a user data directory that was placed explicitly", () => {
+    // The callers that place one want it empty — a smoke test that copied the
+    // real userData in would be testing the developer's data, not the build.
+    const migrations = DesktopStateMigration.resolveStateMigrations({
+      ...base,
+      userDataDirOverridden: true,
+    });
+
+    assert.deepEqual(migrations, [
+      { source: "/Users/alice/.t3/userdata", target: "/Users/alice/.ito/userdata" },
     ]);
   });
 

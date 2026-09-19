@@ -36,6 +36,10 @@ const compactEnv = (env: Readonly<Record<string, string | undefined>>): Record<s
 export const DesktopConfig = Config.all({
   appDataDirectory: trimmedString("APPDATA"),
   itoHome: trimmedString("ITO_HOME"),
+  // Electron's own state — caches, cookies, the single-instance lock — which
+  // otherwise lands beside the app data whatever ITO_HOME says. Only something
+  // that must not share a running app's lock sets this; see the smoke test.
+  userDataDirectory: trimmedString("ITO_DESKTOP_USER_DATA_DIR"),
   devServerUrl: Config.url("VITE_DEV_SERVER_URL").pipe(Config.option),
   devRemoteItoServerEntryPath: trimmedString("ITO_DEV_REMOTE_Ito_SERVER_ENTRY_PATH"),
   configuredBackendPort: Config.port("ITO_PORT").pipe(Config.option),

@@ -43,10 +43,16 @@ const normalizeCommitHash = (value: string): Option.Option<string> => {
 /**
  * Always the Itô path. Anything the T3 Code fork left behind is copied here by
  * `DesktopStateMigration.migrateLegacyState` before this is read.
+ *
+ * An explicit override wins, and nothing is migrated into it. This is the only
+ * way to keep two production instances off each other's single-instance lock,
+ * which is taken on this directory and so ignores ITO_HOME entirely.
  */
 export const resolveUserDataPath = Effect.gen(function* () {
   const environment = yield* DesktopEnvironment.DesktopEnvironment;
-  return environment.path.join(environment.appDataDirectory, environment.userDataDirName);
+  return Option.getOrElse(environment.userDataDirOverride, () =>
+    environment.path.join(environment.appDataDirectory, environment.userDataDirName),
+  );
 }).pipe(Effect.withSpan("desktop.appIdentity.resolveUserDataPath"));
 
 /** @public Service construction is part of the canonical Effect module API. */

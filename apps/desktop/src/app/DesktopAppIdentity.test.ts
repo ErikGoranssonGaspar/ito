@@ -153,6 +153,20 @@ describe("DesktopAppIdentity", () => {
     ),
   );
 
+  it.effect("lets an explicit user data directory win over the Itô one", () =>
+    // The single-instance lock is taken on this directory, so it is the only
+    // way to run a second production instance beside one already running.
+    withIdentity(
+      Effect.gen(function* () {
+        const identity = yield* DesktopAppIdentity.DesktopAppIdentity;
+        const userDataPath = yield* identity.resolveUserDataPath;
+
+        assert.equal(userDataPath, "/tmp/ito-smoke-abc/user-data");
+      }),
+      { environment: { env: { ITO_DESKTOP_USER_DATA_DIR: "/tmp/ito-smoke-abc/user-data" } } },
+    ),
+  );
+
   it.effect("configures app identity from the environment commit override", () => {
     const calls: ElectronAppCalls = {
       setAboutPanelOptions: [],

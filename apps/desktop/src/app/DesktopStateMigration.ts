@@ -1,5 +1,6 @@
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
+import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 
 import type { JoinPath } from "./DesktopStatePaths.ts";
@@ -42,20 +43,27 @@ const LEGACY_BASE_DIR_NAME = ".t3";
  * before the rebrand, so both have a counterpart to inherit. A base directory
  * the owner pointed somewhere else through `ITO_HOME` is left alone — it was
  * chosen deliberately and nothing renamed it.
+ *
+ * A user data directory placed explicitly is left alone for the same reason,
+ * and for one more: the callers that place it want an empty directory, not a
+ * copy of the real one. Seeding it would defeat the point.
  */
 export function resolveStateMigrations(input: {
   readonly appDataDirectory: string;
   readonly userDataDirName: string;
+  readonly userDataDirOverridden: boolean;
   readonly legacyUserDataDirNames: ReadonlyArray<string>;
   readonly baseDir: string;
   readonly stateDir: string;
   readonly joinPath: JoinPath;
 }): ReadonlyArray<StateMigration> {
   const userDataTarget = input.joinPath(input.appDataDirectory, input.userDataDirName);
-  const userDataMigrations = input.legacyUserDataDirNames.map((legacyName) => ({
-    source: input.joinPath(input.appDataDirectory, legacyName),
-    target: userDataTarget,
-  }));
+  const userDataMigrations = input.userDataDirOverridden
+    ? []
+    : input.legacyUserDataDirNames.map((legacyName) => ({
+        source: input.joinPath(input.appDataDirectory, legacyName),
+        target: userDataTarget,
+      }));
 
   const parent = input.baseDir.slice(0, -BASE_DIR_NAME.length);
   const named = input.baseDir.endsWith(BASE_DIR_NAME) && /[/\\]$/.test(parent);
@@ -82,6 +90,7 @@ export const migrateLegacyState = Effect.gen(function* () {
   const migrations = resolveStateMigrations({
     appDataDirectory: environment.appDataDirectory,
     userDataDirName: environment.userDataDirName,
+    userDataDirOverridden: Option.isSome(environment.userDataDirOverride),
     legacyUserDataDirNames: environment.legacyUserDataDirNames,
     baseDir: environment.baseDir,
     stateDir: environment.stateDir,

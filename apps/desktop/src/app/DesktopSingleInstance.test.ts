@@ -3,6 +3,7 @@ import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import { beforeEach, vi } from "vite-plus/test";
 
 const { requestLock, releaseLock } = vi.hoisted(() => ({
@@ -26,6 +27,7 @@ const makeLayer = (events: string[]) => {
   const environment = DesktopEnvironment.DesktopEnvironment.of({
     appDataDirectory: "/tmp/app-data",
     userDataDirName: "ito-dev",
+    userDataDirOverride: Option.none(),
     legacyUserDataDirName: "Itô",
     path: { join: (...parts: ReadonlyArray<string>) => parts.join("/") },
   } as unknown as DesktopEnvironment.DesktopEnvironment["Service"]);

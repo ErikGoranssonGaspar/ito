@@ -43,9 +43,16 @@ if (!NodeFS.existsSync(mainJs)) {
 const stateHome = NodeFS.realpathSync(
   NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "ito-smoke-")),
 );
+// Electron's own state is the other half, and ITO_HOME does not move it: it is
+// derived from the home directory, so every production launch on this machine
+// shares one. The single-instance lock lives there, so without this the test
+// loses the lock to an Itô the developer is running, quits before it can report
+// anything, and fails for a reason that has nothing to do with the build.
+const userDataHome = NodePath.join(stateHome, "user-data");
 
 console.log("\nLaunching Electron smoke test...");
 console.log(`  state directory: ${stateHome}`);
+console.log(`  user data directory: ${userDataHome}`);
 
 const electronCommand = resolveElectronLaunchCommand([mainJs]);
 const child = NodeChildProcess.spawn(electronCommand.electronPath, electronCommand.args, {
@@ -57,6 +64,7 @@ const child = NodeChildProcess.spawn(electronCommand.electronPath, electronComma
   env: {
     ...process.env,
     ITO_HOME: stateHome,
+    ITO_DESKTOP_USER_DATA_DIR: userDataHome,
     VITE_DEV_SERVER_URL: "",
     ELECTRON_ENABLE_LOGGING: "1",
   },
