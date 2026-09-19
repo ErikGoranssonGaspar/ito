@@ -3,4 +3,4 @@ export {
   readHostedPairingRequest,
   setPairingTokenOnUrl,
   stripPairingTokenFromUrl,
-} from "@t3tools/shared/remote";
+} from "@ito/shared/remote";

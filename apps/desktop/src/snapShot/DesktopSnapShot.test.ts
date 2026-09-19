@@ -5,7 +5,7 @@ import {
   DesktopPendingSnapShot,
   type ClientSettings,
   type DesktopSnapShotEvent,
-} from "@t3tools/contracts";
+} from "@ito/contracts";
 import * as Crypto from "effect/Crypto";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
@@ -738,17 +738,17 @@ it.effect("captures the foreground window in place from the shortcut", () => {
     shouldRenderRichAnimation: true,
   });
   const bounds = { x: 10, y: 20, width: 800, height: 600 };
-  const t3 = {
+  const ito = {
     id: 42,
-    title: "T3 Code",
-    appIdentifier: "com.t3tools.T3Code.desktop",
-    owner: { name: "T3 Code", processId: 123 },
+    title: "Itô",
+    appIdentifier: "io.github.erikgoranssongaspar.ito.desktop",
+    owner: { name: "Itô", processId: 123 },
     bounds,
     png: Buffer.from([1, 2, 3]),
   };
   focusedWindowMock.mockReturnValue({
     getBounds: () => bounds,
-    getTitle: () => t3.title,
+    getTitle: () => ito.title,
     isDestroyed: () => false,
     isMinimized: () => false,
     isVisible: () => true,
@@ -756,10 +756,10 @@ it.effect("captures the foreground window in place from the shortcut", () => {
     restore: vi.fn(),
   });
   const images: Uint8Array[] = [];
-  activeWindowMock.mockReset().mockResolvedValue({ ...t3, platform: "macos" });
+  activeWindowMock.mockReset().mockResolvedValue({ ...ito, platform: "macos" });
   macCaptureMock.mockReset().mockImplementation(async () => {
-    images.push(t3.png);
-    return { source: { name: t3.title }, png: t3.png };
+    images.push(ito.png);
+    return { source: { name: ito.title }, png: ito.png };
   });
   const readAccessibility = accessibilityProcessReadMock.getMockImplementation()!;
   accessibilityProcessReadMock.mockImplementation(({ active }) => ({
@@ -787,10 +787,10 @@ it.effect("captures the foreground window in place from the shortcut", () => {
       yield* Effect.promise(registerShortcutMock.mock.calls.at(-1)![1]);
 
       const saved = yield* decodePendingMetadata(metadata);
-      assert.equal(saved.source.windowTitle, t3.title);
-      assert.equal(saved.source.appName, t3.owner.name);
-      assert.equal(saved.source.accessibleText, `Window from process ${t3.owner.processId}`);
-      assert.deepEqual(images, [t3.png]);
+      assert.equal(saved.source.windowTitle, ito.title);
+      assert.equal(saved.source.appName, ito.owner.name);
+      assert.equal(saved.source.accessibleText, `Window from process ${ito.owner.processId}`);
+      assert.deepEqual(images, [ito.png]);
     }),
   ).pipe(
     Effect.provide(
@@ -2137,10 +2137,7 @@ it.effect("flags revoked macOS permissions on read and re-registers once they re
 
       mediaAccessStatusMock.mockReturnValue("denied");
       const revoked = yield* service.state;
-      assert.equal(
-        revoked.message,
-        "Allow Screen Recording in System Settings, then restart T3 Code.",
-      );
+      assert.equal(revoked.message, "Allow Screen Recording in System Settings, then restart Itô.");
       assert.deepEqual(revoked.macPermissions, { screenRecording: false, accessibility: true });
 
       accessibilityTrustedMock.mockReturnValue(false);
@@ -2150,10 +2147,7 @@ it.effect("flags revoked macOS permissions on read and re-registers once they re
         snapShotIncludeAccessibility: false,
       });
       const blocked = yield* service.state;
-      assert.equal(
-        blocked.message,
-        "Allow Screen Recording in System Settings, then restart T3 Code.",
-      );
+      assert.equal(blocked.message, "Allow Screen Recording in System Settings, then restart Itô.");
       assert.isFalse(blocked.shortcutRegistered);
 
       mediaAccessStatusMock.mockReturnValue("granted");

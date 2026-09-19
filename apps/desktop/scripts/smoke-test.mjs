@@ -38,10 +38,10 @@ if (!NodeFS.existsSync(mainJs)) {
 }
 
 // A throwaway state directory, never the developer's own. The app would
-// otherwise resolve T3CODE_HOME to ~/.t3 and start a server against the live
+// otherwise resolve ITO_HOME to ~/.ito and start a server against the live
 // database, which is destructive to run in a loop.
 const stateHome = NodeFS.realpathSync(
-  NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3code-smoke-")),
+  NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "ito-smoke-")),
 );
 
 console.log("\nLaunching Electron smoke test...");
@@ -56,7 +56,7 @@ const child = NodeChildProcess.spawn(electronCommand.electronPath, electronComma
   detached: true,
   env: {
     ...process.env,
-    T3CODE_HOME: stateHome,
+    ITO_HOME: stateHome,
     VITE_DEV_SERVER_URL: "",
     ELECTRON_ENABLE_LOGGING: "1",
   },

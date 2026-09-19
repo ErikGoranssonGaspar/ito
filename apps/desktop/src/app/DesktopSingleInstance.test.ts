@@ -25,8 +25,8 @@ import * as DesktopSingleInstance from "./DesktopSingleInstance.ts";
 const makeLayer = (events: string[]) => {
   const environment = DesktopEnvironment.DesktopEnvironment.of({
     appDataDirectory: "/tmp/app-data",
-    userDataDirName: "t3code-dev",
-    legacyUserDataDirName: "T3 Code (Dev)",
+    userDataDirName: "ito-dev",
+    legacyUserDataDirName: "Itô",
     path: { join: (...parts: ReadonlyArray<string>) => parts.join("/") },
   } as unknown as DesktopEnvironment.DesktopEnvironment["Service"]);
   const electronApp = {
@@ -65,11 +65,7 @@ describe("DesktopSingleInstance", () => {
 
     return Effect.gen(function* () {
       yield* Effect.scoped(Layer.build(makeLayer(events).layer));
-      assert.deepEqual(events, [
-        "setPath:userData:/tmp/app-data/t3code-dev",
-        "lock",
-        "release",
-      ]);
+      assert.deepEqual(events, ["setPath:userData:/tmp/app-data/ito-dev", "lock", "release"]);
     });
   });
 
@@ -80,7 +76,7 @@ describe("DesktopSingleInstance", () => {
     return Effect.gen(function* () {
       const exit = yield* Effect.exit(Effect.scoped(Layer.build(makeLayer(events).layer)));
       assert.isTrue(Exit.hasInterrupts(exit));
-      assert.deepEqual(events, ["setPath:userData:/tmp/app-data/t3code-dev", "quit"]);
+      assert.deepEqual(events, ["setPath:userData:/tmp/app-data/ito-dev", "quit"]);
       assert.lengthOf(releaseLock.mock.calls, 0);
     });
   });
@@ -94,7 +90,7 @@ describe("DesktopSingleInstance", () => {
       const singleInstance = yield* DesktopSingleInstance.DesktopSingleInstance;
       yield* singleInstance.configure;
       assert.deepEqual(events.slice(0, 2), [
-        "setPath:userData:/tmp/app-data/t3code-dev",
+        "setPath:userData:/tmp/app-data/ito-dev",
         "on:second-instance",
       ]);
     }).pipe(

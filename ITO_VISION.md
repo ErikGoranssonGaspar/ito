@@ -14,7 +14,7 @@ For the initial proof of concept, fork **T3 Code** rather than building a new ap
 
 ### The researcher stays in the loop
 
-AI should work *with* the researcher rather than attempt an end-to-end replacement.
+AI should work _with_ the researcher rather than attempt an end-to-end replacement.
 
 Research is exploratory and poorly specified. Early work often consists of:
 

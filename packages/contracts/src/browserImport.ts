@@ -1,6 +1,6 @@
 /**
  * Browser import - pulling cookies from a browser already installed on the
- * machine into a T3 Code browser profile.
+ * machine into an Itô browser profile.
  *
  * Only cookies are imported. They carry the logged-in sessions, which is what
  * makes an imported profile useful; saved passwords are deliberately out of
@@ -107,7 +107,7 @@ export type BrowserImportSource = typeof BrowserImportSource.Type;
 export const BrowserImportInput = Schema.Struct({
   sourceId: BrowserImportSourceId,
   sourceProfileDirectory: TrimmedNonEmptyString,
-  /** T3 Code profile the cookies are written into. */
+  /** Itô profile the cookies are written into. */
   targetProfileId: BrowserProfileId,
 });
 export type BrowserImportInput = typeof BrowserImportInput.Type;
@@ -144,7 +144,7 @@ const BROWSER_IMPORT_UNAVAILABLE_COPY: Readonly<Record<BrowserImportUnavailableR
   keychainItemMissing:
     "No encryption key in your Keychain — sign in to that browser once, then retry.",
   needsFullDiskAccess:
-    "Give T3 Code Full Disk Access in System Settings → Privacy & Security, then retry.",
+    "Give Itô Full Disk Access in System Settings → Privacy & Security, then retry.",
   browserRunning: "Quit the browser first so its cookie database can be read.",
 };
 

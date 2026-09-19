@@ -1,5 +1,5 @@
 import { it as effectIt } from "@effect/vitest";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import { HostProcessPlatform } from "@ito/shared/hostProcess";
 import * as Effect from "effect/Effect";
 import { describe, expect, it, vi } from "vite-plus/test";
 
@@ -390,9 +390,9 @@ describe("findAccessibleWindow", () => {
 
   it("keeps exact title matching", () => {
     expect(
-      findAccessibleWindow([{ name: "⠙ t3code", bounds: captured.bounds }], {
+      findAccessibleWindow([{ name: "⠙ ito", bounds: captured.bounds }], {
         ...captured,
-        title: "⠋ t3code",
+        title: "⠋ ito",
       }),
     ).toBeUndefined();
   });

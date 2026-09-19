@@ -1,8 +1,8 @@
-import { filePreviewDelimiter } from "@t3tools/shared/delimitedPreview";
-import type { EnvironmentId } from "@t3tools/contracts";
-import { formatAttachmentSize } from "@t3tools/client-runtime/state/attachments";
-import { readFilePreviewResponse } from "@t3tools/client-runtime/file-preview";
-import { filePreviewKind, FILE_TEXT_PREVIEW_MAX_BYTES } from "@t3tools/shared/filePreview";
+import { filePreviewDelimiter } from "@ito/shared/delimitedPreview";
+import type { EnvironmentId } from "@ito/contracts";
+import { formatAttachmentSize } from "@ito/client-runtime/state/attachments";
+import { readFilePreviewResponse } from "@ito/client-runtime/file-preview";
+import { filePreviewKind, FILE_TEXT_PREVIEW_MAX_BYTES } from "@ito/shared/filePreview";
 import {
   CheckIcon,
   ChevronRightIcon,

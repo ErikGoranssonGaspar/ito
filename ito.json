@@ -1,0 +1,12 @@
+{
+  "$schema": "https://github.com/ErikGoranssonGaspar/ito/blob/main/schema/ito.json",
+  "iconPath": "assets/dev/blueprint-web-apple-touch-180.png",
+  "scripts": [
+    {
+      "name": "Setup Worktree",
+      "command": "pnpm install",
+      "icon": "configure",
+      "runOnWorktreeCreate": true
+    }
+  ]
+}

@@ -1,10 +1,6 @@
 import { RefreshIcon } from "~/components/ui/refresh-icon";
 import { useAtomValue } from "@effect/atom-react";
-import {
-  USAGE_CONTRACT_VERSION,
-  type EnvironmentId,
-  type UsageProviderKind,
-} from "@t3tools/contracts";
+import { USAGE_CONTRACT_VERSION, type EnvironmentId, type UsageProviderKind } from "@ito/contracts";
 import {
   CircleAlertIcon,
   ChevronDownIcon,
@@ -12,14 +8,14 @@ import {
   SlidersHorizontalIcon,
 } from "lucide-react";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
-import { refreshUsageLimits } from "@t3tools/client-runtime/state/usage";
+import { refreshUsageLimits } from "@ito/client-runtime/state/usage";
 
 import {
   isCompatibleUsageContractVersion,
   isModelCostUnknown,
   type DailyTotals,
   type HourlyTotals,
-} from "@t3tools/shared/usageMerge";
+} from "@ito/shared/usageMerge";
 
 import { isElectron } from "../../env";
 import { cn } from "../../lib/utils";
@@ -38,7 +34,7 @@ import {
   formatTokens,
   formatUsd,
   makeWindow,
-} from "@t3tools/shared/usageFormat";
+} from "@ito/shared/usageFormat";
 import { Button } from "../ui/button";
 import {
   Menu,

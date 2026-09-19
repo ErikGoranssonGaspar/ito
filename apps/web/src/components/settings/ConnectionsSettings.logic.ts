@@ -1,4 +1,4 @@
-import type { AdvertisedEndpoint } from "@t3tools/contracts";
+import type { AdvertisedEndpoint } from "@ito/contracts";
 
 /**
  * A QR code encoding a loopback URL makes the scanning device dial itself, so

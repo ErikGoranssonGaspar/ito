@@ -1,4 +1,4 @@
-import type { AdvertisedEndpoint } from "@t3tools/contracts";
+import type { AdvertisedEndpoint } from "@ito/contracts";
 import { describe, expect, it } from "vite-plus/test";
 import { isQrShareableEndpoint, selectQrEndpointOption } from "./ConnectionsSettings.logic";
 

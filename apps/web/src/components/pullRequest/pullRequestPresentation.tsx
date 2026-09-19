@@ -6,7 +6,7 @@ import type {
   PullRequestChecksState,
   PullRequestMergeability,
   PullRequestState,
-} from "@t3tools/contracts";
+} from "@ito/contracts";
 import {
   CircleCheckIcon,
   CircleDashedIcon,

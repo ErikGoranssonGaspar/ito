@@ -7,6 +7,8 @@ node_modules/
 
 # Local configuration and app state
 .env*
+.ito/
+# The dev state directory this checkout used before the rebrand.
 .t3/
 .idea/
 .plans/

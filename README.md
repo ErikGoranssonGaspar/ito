@@ -1,8 +1,8 @@
-# ito
+# Itô
 
-ito is a personal, macOS-only prototype for an AI-assisted applied mathematics workspace. It currently uses the T3 Code desktop application as its starting point. The longer-term direction is described in [ITO_VISION.md](./ITO_VISION.md); no research-specific features have been added yet.
+Itô is a personal, macOS-only prototype for an AI-assisted applied mathematics workspace. It currently uses the T3 Code desktop application as its starting point. The longer-term direction is described in [ITO_VISION.md](./ITO_VISION.md); no research-specific features have been added yet.
 
-The desktop window runs the React renderer in `apps/web` and starts the local server from `apps/server`. Those directories are required for the desktop app even though ito is not intended to offer a separate browser app or server distribution. Existing coding-agent providers, local Git tools, previews, and screen capture are retained while the prototype is evaluated.
+The desktop window runs the React renderer in `apps/web` and starts the local server from `apps/server`. Those directories are required for the desktop app even though Itô is not intended to offer a separate browser app or server distribution. Existing coding-agent providers, local Git tools, previews, and screen capture are retained while the prototype is evaluated.
 
 ## Run from source on macOS
 
@@ -13,13 +13,13 @@ pnpm install
 pnpm dev
 ```
 
-The development app uses this checkout's gitignored `.t3` directory for local state. Keep that directory if you want to retain your threads and settings. Provider sign-in is handled by each provider's own tooling.
+The development app uses this checkout's gitignored `.ito` directory for local state. Keep that directory if you want to retain your threads and settings. Provider sign-in is handled by each provider's own tooling.
 
 For a focused build or type check:
 
 ```bash
 pnpm build
-pnpm exec vp run --filter @t3tools/desktop --filter @t3tools/web --filter t3 typecheck
+pnpm exec vp run --filter @ito/desktop --filter @ito/web --filter @ito/server typecheck
 ```
 
 After building, check that the app still launches. This takes about ten seconds and uses
@@ -53,14 +53,11 @@ does on this Mac is unchanged.
 
 Things that are deliberately unfinished, roughly in the order they are worth doing.
 
-- **Branding.** The app still calls itself "T3 Code (Alpha)". Packages are `@t3tools/*`
-  and `t3`, environment variables are `T3CODE_*`, and local state lives in `~/.t3`.
-  Renaming touches the state directory, so it needs either a migration or a decision to
-  keep `.t3` for data compatibility.
 - **`docs/user` is stale and unreviewed.** Inherited from T3 Code, it still describes a
-  hosted T3 Connect account, a `t3` command-line tool, and a mobile app — none of which
-  exist here. Read it as history, not as instructions. Rewriting it is a description of
-  what the product now is, so it is not a mechanical find-and-replace.
+  hosted account, a command-line tool, and a mobile app — none of which exist here. The
+  rebrand renamed it but did not review it. Read it as history, not as instructions:
+  rewriting it means describing what the product now is, which is not a
+  find-and-replace.
 - **Non-macOS branches remain in the server and renderer**, roughly 110 `process.platform`
   checks. These need case-by-case judgement rather than a sweep: an SSH environment runs a
   server on a remote host that may not be a Mac, so a `"linux"` branch is only dead when it

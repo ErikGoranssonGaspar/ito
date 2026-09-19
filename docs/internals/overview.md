@@ -1,6 +1,6 @@
 # Architecture
 
-T3 Code keeps execution in the environment that owns the workspace. Clients control it over
+Itô keeps execution in the environment that owns the workspace. Clients control it over
 authenticated RPC. A remote client must never substitute its own filesystem, provider credentials,
 or machine state for the environment's. The desktop app bundles a server, but its renderer follows
 the same boundary.
@@ -90,7 +90,7 @@ Runtime receipts mark specific test milestones. Their
 production behavior must use persisted state and events. These test signals are separate from the
 durable command receipts that make dispatch idempotent.
 
-The Electron shell registers privileges for the `t3code` and `t3code-dev` schemes synchronously
+The Electron shell registers privileges for the `ito` and `ito-dev` schemes synchronously
 through `ElectronProtocol.layerSchemePrivileges`, before Electron is ready. The protocol handler
 that serves the renderer is installed later during desktop bootstrap.
 

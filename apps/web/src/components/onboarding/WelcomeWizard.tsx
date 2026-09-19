@@ -6,13 +6,13 @@ import type {
   ScopedProjectRef,
   ServerConfig,
   ServerProvider,
-} from "@t3tools/contracts";
-import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime/environment";
+} from "@ito/contracts";
+import { scopeProjectRef, scopeThreadRef } from "@ito/client-runtime/environment";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
-} from "@t3tools/client-runtime/state/runtime";
-import { CommandId, ProviderDriverKind, ThreadId } from "@t3tools/contracts";
+} from "@ito/client-runtime/state/runtime";
+import { CommandId, ProviderDriverKind, ThreadId } from "@ito/contracts";
 import * as Schema from "effect/Schema";
 import {
   ArrowRightIcon,
@@ -55,7 +55,7 @@ import { getProviderSummary } from "../settings/providerStatus";
 import { getDriverOption } from "../settings/providerDriverMeta";
 import { TerminalViewport } from "../ThreadTerminalDrawer";
 import { ClaudeAI, OpenAI } from "../Icons";
-import { T3Wordmark } from "../T3Wordmark";
+import { ItoWordmark } from "../ItoWordmark";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "../ui/collapsible";
@@ -181,13 +181,10 @@ export function WelcomeWizard({
         initialFocus={() => document.getElementById("onboarding-pairing-url") ?? true}
       >
         <WizardHeader
-          title="Set up T3 Code"
+          title="Set up Itô"
           identity={
-            <div className="flex items-baseline gap-1.5" role="img" aria-label="T3 Code">
-              <T3Wordmark className="h-4 w-auto shrink-0" aria-hidden />
-              <span className="text-[1.4rem] font-medium tracking-tight text-muted-foreground">
-                Code
-              </span>
+            <div className="flex items-baseline" role="img" aria-label="Itô">
+              <ItoWordmark className="h-5 w-auto shrink-0" aria-hidden />
             </div>
           }
         >
@@ -473,9 +470,9 @@ function PairingForm({
           </div>
           <CollapsiblePanel className="pt-3">
             <p className="text-sm leading-relaxed text-muted-foreground">
-              Open T3 Code on the computer with your code and go to Settings &rarr; Connections.
-              Turn on <span className="text-foreground">Network access</span>, then create a link
-              under <span className="text-foreground">Authorized clients</span> and paste it here.
+              Open Itô on the computer with your code and go to Settings &rarr; Connections. Turn on{" "}
+              <span className="text-foreground">Network access</span>, then create a link under{" "}
+              <span className="text-foreground">Authorized clients</span> and paste it here.
             </p>
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
               Turn on Tailscale HTTPS in the same place for a link that works from your tailnet. To
