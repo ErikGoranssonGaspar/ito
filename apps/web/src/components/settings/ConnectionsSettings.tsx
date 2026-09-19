@@ -2554,8 +2554,8 @@ export function ConnectionsSettings() {
       title={searchableSetting("network-access").title}
       description={
         currentAuthPolicy === "remote-reachable"
-          ? "Remote access is already configured. Change network exposure where the server starts."
-          : "Only this machine can connect. Restart with a non-loopback host for remote pairing."
+          ? "Remote access is already configured. Change network access in the app running this backend."
+          : "Only this machine can connect. Turn on network access in the app running this backend to pair other devices."
       }
       control={
         <Tooltip>
@@ -2571,8 +2571,8 @@ export function ConnectionsSettings() {
             }
           />
           <TooltipPopup side="top">
-            Network exposure changes restart the backend and must be controlled where the server
-            process is launched.
+            Network access changes restart the backend, so they are made in the app that runs it
+            rather than from this client.
           </TooltipPopup>
         </Tooltip>
       }

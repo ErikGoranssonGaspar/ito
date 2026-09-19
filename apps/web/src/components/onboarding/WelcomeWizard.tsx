@@ -18,7 +18,6 @@ import {
   ArrowRightIcon,
   CheckIcon,
   ChevronRightIcon,
-  CopyIcon,
   LinkIcon,
   MonitorIcon,
   TerminalIcon,
@@ -42,7 +41,6 @@ import {
   resolveOnboardingProviderLoginCommand,
   selectOnboardingProvidersByDriver,
 } from "../../onboarding/providerReadiness.logic";
-import { useCopyToClipboard } from "../../hooks/useCopyToClipboard";
 import { newProjectId, randomUUID } from "../../lib/utils";
 import { agentSessionImport } from "../../state/agentSessions";
 import { readProjects, useProjects } from "../../state/entities";
@@ -474,13 +472,15 @@ function PairingForm({
             </Button>
           </div>
           <CollapsiblePanel className="pt-3">
-            <p className="text-sm text-muted-foreground">
-              Run this on the computer with your code.
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Open T3 Code on the computer with your code and go to Settings &rarr; Connections.
+              Turn on <span className="text-foreground">Network access</span>, then create a link
+              under <span className="text-foreground">Authorized clients</span> and paste it here.
             </p>
-            <CommandBlock command="npx t3 pair" className="mt-2" />
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              Start T3 Code first, or run <code className="font-mono">npx t3 serve</code>. Add{" "}
-              <code className="font-mono">--tailscale</code> to use your tailnet.
+              Turn on Tailscale HTTPS in the same place for a link that works from your tailnet. To
+              reach a computer over SSH instead, add it from Settings &rarr; Connections in the
+              desktop app.
             </p>
           </CollapsiblePanel>
         </Collapsible>
@@ -1407,42 +1407,5 @@ function StepShell({
       ) : null}
       {children}
     </>
-  );
-}
-
-function CommandBlock({
-  command,
-  className,
-  prominent = false,
-}: {
-  readonly command: string;
-  readonly className?: string;
-  readonly prominent?: boolean;
-}) {
-  const { copyToClipboard, isCopied } = useCopyToClipboard({
-    timeout: 1500,
-    target: "command",
-  });
-  return (
-    <div
-      className={cn(
-        "flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/50 font-mono",
-        prominent ? "px-4 py-3.5 text-base" : "px-3 py-2.5 text-sm",
-        className,
-      )}
-    >
-      <span className="min-w-0 truncate">
-        <span className="mr-2 text-muted-foreground">$</span>
-        {command}
-      </span>
-      <Button
-        size="icon-xs"
-        variant="ghost"
-        aria-label="Copy command"
-        onClick={() => copyToClipboard(command, undefined)}
-      >
-        {isCopied ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
-      </Button>
-    </div>
   );
 }
