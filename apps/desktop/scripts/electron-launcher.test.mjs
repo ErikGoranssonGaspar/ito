@@ -12,6 +12,7 @@ import {
   resolveMacCodeSignArguments,
   resolveMacLauncherIconPaths,
   resolveMacLauncherPaths,
+  toAsciiExecutableName,
   writeDevelopmentLauncherScript,
 } from "./electron-launcher.mjs";
 
@@ -77,10 +78,11 @@ describe("electron development launcher", () => {
   it("keeps the native Electron executable name inside the branded macOS bundle", () => {
     const paths = resolveMacLauncherPaths("/repo/apps/desktop/.electron-runtime/Itô.app", "Itô");
 
-    assert.equal(paths.launcherExecutableName, "Itô Launcher");
+    // The bundle directory keeps the accent; the executable inside it cannot.
+    assert.equal(paths.launcherExecutableName, "Ito Launcher");
     assert.equal(
       paths.launcherBinaryPath,
-      "/repo/apps/desktop/.electron-runtime/Itô.app/Contents/MacOS/Itô Launcher",
+      "/repo/apps/desktop/.electron-runtime/Itô.app/Contents/MacOS/Ito Launcher",
     );
     assert.equal(
       paths.runtimeElectronBinaryPath,
@@ -100,8 +102,15 @@ describe("electron development launcher", () => {
     assert.notInclude(script, "node_modules/electron");
   });
 
+  it("folds the executable name to ASCII so codesign survives it", () => {
+    // codesign dies with SIGBUS on a non-ASCII main executable file name.
+    assert.equal(toAsciiExecutableName("Itô"), "Ito");
+    assert.equal(toAsciiExecutableName("Itô (Dev)"), "Ito (Dev)");
+    assert.equal(toAsciiExecutableName("日本語"), "App");
+  });
+
   it("declares why the macOS app needs protected access", () => {
-    const values = resolveMacBundleInfoPlistStrings("Itô Launcher");
+    const values = resolveMacBundleInfoPlistStrings("Ito Launcher");
 
     assert.equal(
       values.NSScreenCaptureUsageDescription,

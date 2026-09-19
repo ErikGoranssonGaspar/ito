@@ -18,9 +18,8 @@ describe("resolveStateMigrations", () => {
     appDataDirectory: "/Users/alice/Library/Application Support",
     userDataDirName: "ito",
     legacyUserDataDirNames: ["T3 Code (Alpha)", "t3code"],
-    homeDirectory: "/Users/alice",
+    baseDir: "/Users/alice/.ito",
     stateDir: "/Users/alice/.ito/userdata",
-    isBaseDirConfigured: false,
     joinPath,
   } as const;
 
@@ -62,11 +61,24 @@ describe("resolveStateMigrations", () => {
     });
   });
 
-  it("leaves a configured base directory alone", () => {
+  it("carries over the .ito the dev runner pins to a checkout", () => {
     const migrations = DesktopStateMigration.resolveStateMigrations({
       ...base,
-      isBaseDirConfigured: true,
-      stateDir: "/repo/.ito/dev",
+      baseDir: "/repo/.ito",
+      stateDir: "/repo/.ito/userdata",
+    });
+
+    assert.deepEqual(migrations.at(-1), {
+      source: "/repo/.t3/userdata",
+      target: "/repo/.ito/userdata",
+    });
+  });
+
+  it("leaves a base directory the owner named alone", () => {
+    const migrations = DesktopStateMigration.resolveStateMigrations({
+      ...base,
+      baseDir: "/Volumes/work/ito-state",
+      stateDir: "/Volumes/work/ito-state/userdata",
     });
 
     assert.equal(migrations.length, 2);

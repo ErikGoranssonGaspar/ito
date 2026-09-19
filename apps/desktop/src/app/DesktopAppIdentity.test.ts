@@ -33,6 +33,7 @@ interface ElectronAppCalls {
   readonly setAboutPanelOptions: Array<Electron.AboutPanelOptionsOptions>;
   readonly setDockIcon: string[];
   readonly setName: string[];
+  readonly setUserAgentFallback: string[];
 }
 
 const makeElectronAppLayer = (calls: ElectronAppCalls) =>
@@ -48,6 +49,10 @@ const makeElectronAppLayer = (calls: ElectronAppCalls) =>
     setName: (name) =>
       Effect.sync(() => {
         calls.setName.push(name);
+      }),
+    setUserAgentFallback: (userAgent) =>
+      Effect.sync(() => {
+        calls.setUserAgentFallback.push(userAgent);
       }),
     setAboutPanelOptions: (options) =>
       Effect.sync(() => {
@@ -116,6 +121,7 @@ const withIdentity = <A, E, R>(
     setAboutPanelOptions: [],
     setDockIcon: [],
     setName: [],
+    setUserAgentFallback: [],
   };
 
   return effect.pipe(
@@ -152,6 +158,7 @@ describe("DesktopAppIdentity", () => {
       setAboutPanelOptions: [],
       setDockIcon: [],
       setName: [],
+      setUserAgentFallback: [],
     };
 
     return withIdentity(
@@ -184,6 +191,7 @@ describe("DesktopAppIdentity", () => {
       setAboutPanelOptions: [],
       setDockIcon: [],
       setName: [],
+      setUserAgentFallback: [],
     };
 
     return withIdentity(
