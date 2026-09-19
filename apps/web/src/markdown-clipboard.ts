@@ -166,6 +166,25 @@ function serializeDetails(details: Element): string {
   return `<details${open}>\n<summary>${summary}</summary>${content ? `\n\n${content}` : ""}\n</details>\n\n`;
 }
 
+/**
+ * KaTeX renders each equation twice: MathML for screen readers and styled
+ * spans for sight, the latter aria-hidden. Copying that verbatim yields
+ * doubled, glyph-by-glyph nonsense, so read the TeX back out of the MathML
+ * annotation KaTeX keeps for exactly this purpose.
+ */
+function serializeMath(element: Element): string {
+  const display = element.classList.contains("katex-display");
+  const annotation = element.querySelector('annotation[encoding="application/x-tex"]');
+  // `.katex-error` keeps its unparsed source as its own text. Anything else
+  // missing an annotation would copy the equation twice over, so copy nothing.
+  const source =
+    annotation?.textContent ??
+    (element.classList.contains("katex-error") ? element.textContent : null);
+  const tex = (source ?? "").trim();
+  if (!tex) return "";
+  return display ? `$$\n${tex}\n$$\n\n` : `$${tex}$`;
+}
+
 function serializeAnchor(anchor: Element): string {
   const markdownCopy = anchor.getAttribute("data-markdown-copy");
   if (markdownCopy !== null) return markdownCopy;
@@ -202,6 +221,13 @@ function serializeNode(node: Node): string {
   const markdownCopy = element.getAttribute("data-markdown-copy");
   if (markdownCopy !== null) return markdownCopy;
   if (isSkippedElement(element)) return "";
+  if (
+    element.classList.contains("katex-display") ||
+    element.classList.contains("katex") ||
+    element.classList.contains("katex-error")
+  ) {
+    return serializeMath(element);
+  }
 
   const headingLevel = /^H([1-6])$/.exec(element.tagName)?.[1];
   if (headingLevel) {

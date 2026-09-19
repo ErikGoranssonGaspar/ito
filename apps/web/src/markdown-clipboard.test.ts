@@ -67,6 +67,12 @@ class FakeElement {
       if (target === 'input[type="checkbox"]') {
         return element.tagName === "INPUT" && element.getAttribute("type") === "checkbox";
       }
+      if (target === 'annotation[encoding="application/x-tex"]') {
+        return (
+          element.tagName === "ANNOTATION" &&
+          element.getAttribute("encoding") === "application/x-tex"
+        );
+      }
       return element.tagName === target.toUpperCase();
     };
     const search = (parent: FakeElement): FakeElement | null => {
@@ -106,6 +112,18 @@ function renderedCodeBlock(lines: ReadonlyArray<string>): FakeElement {
     ),
     new FakeElement("DIV", ["chat-markdown-shiki"]).append(new FakeElement("PRE").append(code)),
   );
+}
+
+/** Mirrors KaTeX output: annotated MathML beside the aria-hidden visual spans. */
+function renderedMath(tex: string, display: boolean): FakeElement {
+  const mathml = new FakeElement("SPAN", ["katex-mathml"]).append(
+    new FakeElement("ANNOTATION", [], { encoding: "application/x-tex" }).append(new FakeText(tex)),
+  );
+  const visual = new FakeElement("SPAN", ["katex-html"], { "aria-hidden": "true" }).append(
+    new FakeText("glyph soup"),
+  );
+  const katex = new FakeElement("SPAN", ["katex"]).append(mathml, visual);
+  return display ? new FakeElement("SPAN", ["katex-display"]).append(katex) : katex;
 }
 
 describe("serializeRenderedMarkdownFragment", () => {
@@ -261,6 +279,32 @@ describe("serializeRenderedMarkdownFragment", () => {
     expect(serializeRenderedMarkdownFragment(asNode(container))).toBe(
       "Run this:\n\n```\ngh workflow run Deploy --ref main\n```",
     );
+  });
+
+  it("copies rendered math back as its LaTeX source", () => {
+    const container = new FakeElement("DIV").append(
+      new FakeElement("P").append(
+        new FakeText("Euler: "),
+        renderedMath("e^{i\\pi} + 1 = 0", false),
+        new FakeText(" holds"),
+      ),
+      renderedMath("\\int_0^1 x\\,dx", true),
+    );
+
+    expect(serializeRenderedMarkdownFragment(asNode(container))).toBe(
+      "Euler: $e^{i\\pi} + 1 = 0$ holds\n\n$$\n\\int_0^1 x\\,dx\n$$",
+    );
+  });
+
+  it("copies unparseable math as the source KaTeX kept", () => {
+    const container = new FakeElement("DIV").append(
+      new FakeElement("P").append(
+        new FakeText("Broken: "),
+        new FakeElement("SPAN", ["katex-error"]).append(new FakeText("\\frac{1")),
+      ),
+    );
+
+    expect(serializeRenderedMarkdownFragment(asNode(container))).toBe("Broken: $\\frac{1$");
   });
 
   it("uses a rendered card's explicit Markdown copy representation", () => {

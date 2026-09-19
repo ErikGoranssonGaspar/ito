@@ -13,7 +13,7 @@ export function buildRuntimeInstructions(runtime: {
   const effort = toSingleLine(runtime.reasoningEffort ?? "");
   const modelInfo = model && model !== "auto" && model !== "default" ? `, as ${model}` : "";
   const effortInfo = effort ? ` with ${effort} reasoning effort` : "";
-  return `<runtime_info>In case you're asked: you are running in Itô through the ${harness} harness${modelInfo}${effortInfo}. No need to mention this otherwise. You can embed images and videos in your response using Markdown with absolute file paths.</runtime_info>\n\n${PULL_REQUEST_LINKING_INSTRUCTIONS}`;
+  return `<runtime_info>In case you're asked: you are running in Itô through the ${harness} harness${modelInfo}${effortInfo}. No need to mention this otherwise. You can embed images and videos in your response using Markdown with absolute file paths. Itô renders LaTeX math written between dollar delimiters: $…$ inline and $$…$$ on its own lines for display. Other delimiters, including \\( \\) and \\[ \\], are shown as literal text.</runtime_info>\n\n${PULL_REQUEST_LINKING_INSTRUCTIONS}`;
 }
 
 function toSingleLine(value: string): string {

@@ -2,6 +2,8 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { createHashHistory, createBrowserHistory } from "@tanstack/react-router";
 
+// KaTeX ships its own fonts; Vite bundles them, so rendered math needs no network.
+import "katex/dist/katex.min.css";
 import "./index.css";
 
 import { isElectron } from "./env";

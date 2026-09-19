@@ -1931,6 +1931,27 @@ code {
   background: transparent !important;
 }
 
+/* Math. KaTeX sizes itself at 1.21em to make up for its own metrics, which
+   reads large beside the chat's text; 1.1em keeps the compensation without
+   the jump. A display equation wider than the pane scrolls on its own rather
+   than stretching the message. */
+.chat-markdown .katex {
+  font-size: 1.1em;
+}
+
+.chat-markdown .katex-display {
+  margin: 0.65rem 0;
+  padding: 0.125rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.chat-markdown .katex-error {
+  /* Unparseable math keeps its source visible instead of disappearing. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 /* Paragraphs and code blocks arrive in chunks while a response streams. Fade
    each new block in so the chunk does not pop. @starting-style only applies
    when an element is first inserted, and the rule is gated on data-streaming,

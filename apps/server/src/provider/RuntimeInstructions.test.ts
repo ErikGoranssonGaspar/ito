@@ -10,6 +10,12 @@ describe("buildRuntimeInstructions", () => {
     expect(instructions).toContain("call list_thread_pull_requests and link any PR");
   });
 
+  it("names the math delimiters the renderer understands", () => {
+    const instructions = buildRuntimeInstructions({ harness: "Claude Code" });
+    expect(instructions).toContain("$\u2026$ inline and $$\u2026$$ on its own lines for display");
+    expect(instructions).toContain("including \\( \\) and \\[ \\], are shown as literal text");
+  });
+
   it("keeps known model and effort metadata on one line", () => {
     expect(
       buildRuntimeInstructions({

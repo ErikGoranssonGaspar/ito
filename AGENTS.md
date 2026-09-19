@@ -7,7 +7,8 @@ direction.
 The standing task is to build toward that vision while keeping the existing coding-agent
 features working. Build a research feature when the owner asks for it, not because the
 vision document mentions it. The reduction of the fork is finished; see the README for
-what remains unfinished.
+what remains unfinished, and `TODO.md` for known breakage the owner has agreed is worth
+fixing but has not scheduled.
 
 ## Intended scope
 

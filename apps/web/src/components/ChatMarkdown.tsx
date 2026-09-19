@@ -81,6 +81,7 @@ import ReactMarkdown from "react-markdown";
 import { toHtml } from "hast-util-to-html";
 import { createIncrementalMarkdownPlugin } from "../markdown-incremental";
 import { defaultUrlTransform } from "react-markdown";
+import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkBreaks from "remark-breaks";
@@ -88,7 +89,9 @@ import { parseAssistantCitationHref } from "@ito/shared/assistantCitations";
 import { parseComposerContextHref } from "@ito/shared/composerContextReferences";
 import { AssistantCitationChip } from "./chat/AssistantCitationChip";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 import { remarkGithubAlerts } from "../markdown-github-alerts";
+import { createDollarMathPlugin } from "../markdown-math";
 import {
   artifactTemplateFromHastProperties,
   CODEX_ARTIFACT_TEMPLATE_HAST_PROPERTIES,
@@ -466,6 +469,9 @@ const CHAT_MARKDOWN_SANITIZE_SCHEMA = {
   attributes: {
     ...defaultSchema.attributes,
     "*": (defaultSchema.attributes?.["*"] ?? []).filter((attribute) => attribute !== "title"),
+    // Math keeps the schema's own `language-*` rule: remark-math marks every
+    // equation `language-math` alongside its `math-inline`/`math-display`
+    // class, and that is the one rehype-katex looks for after sanitizing.
     code: [...(defaultSchema.attributes?.code ?? []), "dataCodeMeta", "dataInlineCode"],
     blockquote: [...(defaultSchema.attributes?.blockquote ?? []), "dataAlert"],
     div: [...(defaultSchema.attributes?.div ?? []), ...CODEX_ARTIFACT_TEMPLATE_HAST_PROPERTIES],
@@ -484,8 +490,12 @@ const CHAT_MARKDOWN_SANITIZE_SCHEMA = {
   },
 } satisfies Parameters<typeof rehypeSanitize>[0];
 
+const remarkDollarMath = createDollarMathPlugin();
+
 const CHAT_MARKDOWN_REMARK_PLUGINS = [
   remarkGfm,
+  remarkMath,
+  remarkDollarMath,
   remarkGithubAlerts,
   remarkNormalizeListItemIndentation,
   remarkCodexDirectives,
@@ -493,8 +503,12 @@ const CHAT_MARKDOWN_REMARK_PLUGINS = [
   remarkNormalizeLinksAndTagInlineCode,
 ] satisfies NonNullable<ReactMarkdownOptions["remarkPlugins"]>;
 
+// The dollar guard runs ahead of remarkBreaks so the text it restores still
+// gets a chat message's single-newline hard breaks.
 const CHAT_MARKDOWN_REMARK_PLUGINS_WITH_BREAKS = [
   remarkGfm,
+  remarkMath,
+  remarkDollarMath,
   remarkGithubAlerts,
   remarkNormalizeListItemIndentation,
   remarkCodexDirectives,
@@ -503,11 +517,21 @@ const CHAT_MARKDOWN_REMARK_PLUGINS_WITH_BREAKS = [
   remarkNormalizeLinksAndTagInlineCode,
 ] satisfies NonNullable<ReactMarkdownOptions["remarkPlugins"]>;
 
+// KaTeX renders after sanitizing: its markup is generated from the math the
+// schema already vetted, and the class-heavy spans it emits would not survive
+// the schema itself.
 const CHAT_MARKDOWN_REHYPE_PLUGINS = [
   rehypeRaw,
   rehypePreserveImageSourceMeta,
   [rehypeSanitize, CHAT_MARKDOWN_SANITIZE_SCHEMA],
+  rehypeKatex,
 ] satisfies NonNullable<ReactMarkdownOptions["rehypePlugins"]>;
+
+/** Messages that keep raw HTML as source text have nothing to sanitize, and
+    still need their math rendered. */
+const CHAT_MARKDOWN_MATH_REHYPE_PLUGINS = [rehypeKatex] satisfies NonNullable<
+  ReactMarkdownOptions["rehypePlugins"]
+>;
 
 /** GitHub's own five alert kinds, in its colors: the glyph names the urgency, the title says it. */
 const GITHUB_ALERT_PRESENTATIONS: Record<
@@ -3340,7 +3364,9 @@ function ChatMarkdown({
       <ChatMarkdownRendererContext value={componentState}>
         <ReactMarkdown
           remarkPlugins={remarkPlugins}
-          rehypePlugins={parseRawHtml ? CHAT_MARKDOWN_REHYPE_PLUGINS : undefined}
+          rehypePlugins={
+            parseRawHtml ? CHAT_MARKDOWN_REHYPE_PLUGINS : CHAT_MARKDOWN_MATH_REHYPE_PLUGINS
+          }
           skipHtml={false}
           components={CHAT_MARKDOWN_COMPONENTS}
           urlTransform={markdownUrlTransform}

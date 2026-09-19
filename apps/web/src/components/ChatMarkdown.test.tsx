@@ -716,6 +716,131 @@ describe("ChatMarkdown heading levels", () => {
   });
 });
 
+describe("ChatMarkdown math", () => {
+  /** The TeX KaTeX keeps in its MathML annotation, which is what copying reads. */
+  function renderedTex(html: string): Array<string> {
+    return [
+      ...html.matchAll(/<annotation encoding="application\/x-tex">([^<]*)<\/annotation>/g),
+    ].map((match) => match[1] ?? "");
+  }
+
+  it("gives a one-line $$…$$ paragraph its own display block", () => {
+    const html = renderToStaticMarkup(
+      <ChatMarkdown cwd="/tmp/project" text={"Therefore:\n\n$$E = mc^2$$\n\nas claimed."} />,
+    );
+
+    expect(renderedTex(html)).toEqual(["E = mc^2"]);
+    expect(html).toContain("katex-display");
+  });
+
+  it("keeps $$…$$ inline when it shares a line with prose", () => {
+    const html = renderToStaticMarkup(
+      <ChatMarkdown cwd="/tmp/project" text="Therefore $$E = mc^2$$ as claimed." />,
+    );
+
+    expect(renderedTex(html)).toEqual(["E = mc^2"]);
+    expect(html).not.toContain("katex-display");
+  });
+
+  it("renders inline and display math in an assistant response", () => {
+    const html = renderToStaticMarkup(
+      <ChatMarkdown
+        cwd="/tmp/project"
+        text={"Euler: $e^{i\\pi} + 1 = 0$\n\n$$\n\\int_0^1 x\\,dx = \\frac{1}{2}\n$$"}
+      />,
+    );
+
+    expect(renderedTex(html)).toEqual(["e^{i\\pi} + 1 = 0", "\\int_0^1 x\\,dx = \\frac{1}{2}"]);
+    expect(html).toContain("katex-display");
+  });
+
+  it("renders math in a message the user sent, which keeps raw HTML as source text", () => {
+    const html = renderToStaticMarkup(
+      <ChatMarkdown
+        cwd="/tmp/project"
+        text={"Solve $x^2 = 2$ for me\n\n$$\n\\sqrt{2}\n$$"}
+        lineBreaks
+        parseRawHtml={false}
+      />,
+    );
+
+    expect(renderedTex(html)).toEqual(["x^2 = 2", "\\sqrt{2}"]);
+    expect(html).toContain("katex-display");
+  });
+
+  it("recovers the message a runaway $$ block swallowed", () => {
+    // A closing `$$` that trails the equation instead of standing on its own
+    // line: micromark reads no fence, and every line after it is eaten.
+    const text = [
+      "Expanding the right-hand side:",
+      "",
+      "$$",
+      "= \\underbrace{x^2 - 2x^2 + x^2}_{0} + \\tfrac{1}{v^2} + 1 .$$",
+      "",
+      "The $x$-only terms cancel. What's left:",
+      "",
+      "**Step 3 — multiply by $-v^2$:**",
+    ].join("\n");
+
+    const html = renderToStaticMarkup(<ChatMarkdown cwd="/tmp/project" text={text} />);
+
+    expect(renderedTex(html)).toEqual([
+      "= \\underbrace{x^2 - 2x^2 + x^2}_{0} + \\tfrac{1}{v^2} + 1 .",
+      "x",
+      "-v^2",
+    ]);
+    expect(html).toContain("katex-display");
+    expect(html).toContain("<strong>");
+    expect(html).not.toContain("katex-error");
+  });
+
+  it("shows an unclosed equation as its own source instead of an error", () => {
+    const html = renderToStaticMarkup(
+      <ChatMarkdown cwd="/tmp/project" text={"Almost there:\n\n$$\n\\frac{1"} isStreaming />,
+    );
+
+    expect(renderedTex(html)).toEqual([]);
+    expect(html).not.toContain("katex-error");
+    expect(html).toContain("\\frac{1");
+  });
+
+  it("leaves dollars inside code alone", () => {
+    const html = renderToStaticMarkup(
+      <ChatMarkdown cwd="/tmp/project" text={"Run `$x$` then\n\n```sh\necho $x$\n```"} />,
+    );
+
+    expect(renderedTex(html)).toEqual([]);
+    expect(html).toContain("$x$");
+  });
+
+  it("reads prose dollars as prose, not as math", () => {
+    for (const text of [
+      "It costs $5 and $10 today",
+      "Use $HOME and $PATH here",
+      "A flat $5$ fee",
+      "Between $3.50 and $4 a unit",
+    ]) {
+      const html = renderToStaticMarkup(<ChatMarkdown cwd="/tmp/project" text={text} />);
+
+      expect(renderedTex(html)).toEqual([]);
+      expect(html).toContain(text);
+    }
+  });
+
+  it("keeps math that carries no LaTeX syntax of its own", () => {
+    for (const [text, tex] of [
+      ["Let $x$ be", "x"],
+      ["Let $ x^2 $ be", "x^2"],
+      ["Then $a + b$ follows", "a + b"],
+      ["Then $f(x)$ follows", "f(x)"],
+    ] as const) {
+      const html = renderToStaticMarkup(<ChatMarkdown cwd="/tmp/project" text={text} />);
+
+      expect(renderedTex(html)).toEqual([tex]);
+    }
+  });
+});
+
 describe("shouldUseMarkdownFileBrowserPrimaryAction", () => {
   it("uses the browser when it is the only available primary action", () => {
     expect(
