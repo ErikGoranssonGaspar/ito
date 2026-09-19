@@ -1260,6 +1260,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
           ref={setTimelineViewportElement}
           className="relative h-full min-h-0"
           data-assistant-citation-viewport="true"
+          onCopy={copyRenderedMarkdownSelection}
         >
           {onCiteAssistantText && citationThreadRef ? (
             <AssistantSelectionToolbar
@@ -1919,6 +1920,50 @@ function UserVideoAttachment({ file }: { readonly file: ChatFileAttachment }) {
 // from selection so sighted users and copied text are unaffected.
 const MESSAGE_HEADING_LEVEL = 3;
 
+/**
+ * A clipboard event is dispatched at the element holding the start of the
+ * selection, so ChatMarkdown's own handler only sees selections that begin
+ * inside one message body. A drag begun a line above the text starts in the
+ * row gap or the timeline chrome instead, and the whole copy falls through to
+ * the browser default, which takes KaTeX at face value: the hidden MathML and
+ * the visual spans are both text, so every equation lands twice over as
+ * glyphs rather than once as the TeX that produced it.
+ *
+ * This sits at the timeline root, above every row, and claims those copies.
+ */
+function copyRenderedMarkdownSelection(event: React.ClipboardEvent<HTMLDivElement>): void {
+  // ChatMarkdown handles the selections that start inside a message body, and
+  // the user row's capture handler handles the ones carrying context chips.
+  if (event.defaultPrevented || !event.clipboardData) return;
+  const selection = window.getSelection();
+  if (!selection || selection.isCollapsed) return;
+  if (!selectionTouchesRenderedMarkdown(selection)) return;
+  const payload = chatMarkdownClipboardPayload(selection);
+  if (!payload) return;
+  event.preventDefault();
+  event.clipboardData.setData("text/plain", payload.text);
+  event.clipboardData.setData("text/html", payload.html);
+}
+
+/**
+ * The timeline also holds diffs, tool cards, and terminal output, none of
+ * which is markdown to re-serialize. Only a selection carrying some rendered
+ * message is worth taking off the browser.
+ */
+function selectionTouchesRenderedMarkdown(selection: Selection): boolean {
+  for (let index = 0; index < selection.rangeCount; index += 1) {
+    const range = selection.getRangeAt(index);
+    if (range.collapsed) continue;
+    const ancestor = range.commonAncestorContainer;
+    const element =
+      ancestor.nodeType === Node.ELEMENT_NODE ? (ancestor as Element) : ancestor.parentElement;
+    // Either the selection sits inside one message, or it spans enough of the
+    // timeline to have swept whole messages up with it.
+    if (element?.closest(".chat-markdown") || element?.querySelector(".chat-markdown")) return true;
+  }
+  return false;
+}
+
 function MessageAuthorHeading({ children }: { children: string }) {
   return <h3 className="sr-only select-none">{children}</h3>;
 }
@@ -2080,7 +2125,7 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
   );
 
   return (
-    <div className="group flex flex-col items-end gap-1">
+    <div className="group flex flex-col items-end gap-1" onCopyCapture={onBodyCopyCapture}>
       <div className="relative max-w-[80%] rounded-2xl bg-message p-3 text-message-foreground">
         <MessageAuthorHeading>You</MessageAuthorHeading>
         {(regularImages.length > 0 || userVideos.length > 0) && (
@@ -2185,7 +2230,7 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
             ))}
           </div>
         ) : null}
-        <div onCopyCapture={onBodyCopyCapture}>
+        <div>
           <CollapsibleUserMessageBody
             text={resolvedContext.text}
             renderContextReference={renderContextReference}
@@ -2194,7 +2239,7 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
           />
         </div>
       </div>
-      <div className="flex w-full max-w-[80%] items-center justify-end pe-1 text-xs tabular-nums opacity-0 transition-opacity duration-200 pointer-coarse:opacity-100 focus-within:opacity-100 group-hover:opacity-100">
+      <div className="flex w-full max-w-[80%] select-none items-center justify-end pe-1 text-xs tabular-nums opacity-0 transition-opacity duration-200 pointer-coarse:opacity-100 focus-within:opacity-100 group-hover:opacity-100">
         <div className="flex shrink-0 items-center gap-2">
           <Tooltip>
             <TooltipTrigger render={<p className="text-muted-foreground text-xs tabular-nums" />}>
@@ -2431,7 +2476,7 @@ function AssistantMessageMeta({
   return (
     <div
       className={cn(
-        "flex items-center gap-2 text-xs tabular-nums transition-opacity duration-200",
+        "flex select-none items-center gap-2 text-xs tabular-nums transition-opacity duration-200",
         alwaysVisible
           ? "opacity-100"
           : "opacity-0 pointer-coarse:opacity-100 focus-within:opacity-100 group-hover/assistant:opacity-100",
