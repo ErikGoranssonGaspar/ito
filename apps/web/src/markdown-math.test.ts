@@ -73,6 +73,80 @@ describe("createDollarMathPlugin", () => {
     });
   });
 
+  it("splits the prose around a tagged equation written on its own line", () => {
+    const source = "Define\n$x = 1 \\tag{1}$\nas above";
+    const tree: TestNode = {
+      type: "root",
+      children: [
+        {
+          type: "paragraph",
+          children: [
+            { type: "text", value: "Define\n" },
+            mathNode(source, "$x = 1 \\tag{1}$", "x = 1 \\tag{1}"),
+            { type: "text", value: "\nas above" },
+          ],
+        },
+      ],
+    };
+
+    dollarMath()(tree, { value: source });
+
+    expect(tree.children?.map((child) => child.type)).toEqual(["paragraph", "math", "paragraph"]);
+    expect(tree.children?.[1]).toMatchObject({ value: "x = 1 \\tag{1}", data: { hName: "pre" } });
+    expect(tree.children?.[0]?.children).toEqual([{ type: "text", value: "Define" }]);
+    expect(tree.children?.[2]?.children).toEqual([{ type: "text", value: "as above" }]);
+  });
+
+  it("leaves a tagged equation that shares its line with prose inline", () => {
+    const source = "As $x = 1 \\tag{1}$ shows";
+    const tree: TestNode = {
+      type: "root",
+      children: [
+        {
+          type: "paragraph",
+          children: [
+            { type: "text", value: "As " },
+            mathNode(source, "$x = 1 \\tag{1}$", "x = 1 \\tag{1}"),
+            { type: "text", value: " shows" },
+          ],
+        },
+      ],
+    };
+
+    dollarMath()(tree, { value: source });
+
+    expect(tree.children?.[0]?.children?.[1]?.type).toBe("inlineMath");
+  });
+
+  it("keeps the spacing between the words a split paragraph keeps", () => {
+    const source = "**Bold** *and* italic\n$x \\tag{1}$";
+    const tree: TestNode = {
+      type: "root",
+      children: [
+        {
+          type: "paragraph",
+          children: [
+            { type: "strong", children: [{ type: "text", value: "Bold" }] },
+            { type: "text", value: " " },
+            { type: "emphasis", children: [{ type: "text", value: "and" }] },
+            { type: "text", value: " italic\n" },
+            mathNode(source, "$x \\tag{1}$", "x \\tag{1}"),
+          ],
+        },
+      ],
+    };
+
+    dollarMath()(tree, { value: source });
+
+    expect(tree.children?.[0]?.children?.map((child) => child.value)).toEqual([
+      undefined,
+      " ",
+      undefined,
+      " italic",
+    ]);
+    expect(tree.children?.[1]?.type).toBe("math");
+  });
+
   it("keeps math it cannot locate in the source", () => {
     const source = "costs $5 and $10 today";
     const tree = paragraphWithMath({ type: "inlineMath", value: "5 and " });

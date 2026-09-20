@@ -1,7 +1,7 @@
 import type { Processor } from "unified";
 
 /**
- * Reads dollar math the way people write it, correcting remark-math on three
+ * Reads dollar math the way people write it, correcting remark-math on four
  * points before the tree reaches KaTeX.
  *
  * Prose dollars. Single-dollar math is ambiguous in a coding workspace:
@@ -34,6 +34,14 @@ import type { Processor } from "unified";
  * followed is parsed as the markdown it was meant to be. One that offers
  * neither — the usual shape of an equation still streaming in — renders as its
  * own source text until the rest of it lands.
+ *
+ * Tagged equations. `\tag` is a display-only command: KaTeX refuses it inline
+ * and renders the whole equation as red source instead. An author who numbers
+ * an equation meant it to stand on its own, so a single-dollar span carrying a
+ * `\tag` and occupying a whole line of its own is lifted out of the prose
+ * around it and rendered as a display block. Anything less — a `\tag`
+ * mid-sentence — is left alone, because splitting a line there would break the
+ * sentence it sits in.
  */
 
 interface MathPoint {
@@ -62,6 +70,9 @@ const BARE_AMOUNT = /^\d+(?:[.,]\d+)*$/;
 const DISPLAY_FENCE = "$$\n";
 const TRAILING_CLOSER = /\$\$[ \t]*$/;
 const CLOSING_FENCE_LINE = /\n[ \t]*\$\$[ \t]*$/;
+const TAG_COMMAND = /\\tag\*?\s*\{/;
+const LEADING_SOFT_BREAK = /^[ \t]*\n[ \t]*/;
+const TRAILING_SOFT_BREAK = /[ \t]*\n[ \t]*$/;
 
 /** The node's own source text, read through its position. */
 function nodeSource(node: MathAstNode, source: string): string | null {
@@ -115,6 +126,84 @@ function loneDisplayMath(node: MathAstNode, source: string): MathAstNode | null 
 
   const value = typeof math.value === "string" ? math.value : "";
   return displayMath(value, node.position);
+}
+
+/** Whether the node has its source line to itself, prose-free on both sides. */
+function standsAloneOnLine(node: MathAstNode, source: string): boolean {
+  const start = node.position?.start?.offset;
+  const end = node.position?.end?.offset;
+  if (typeof start !== "number" || typeof end !== "number") return false;
+  const lineStart = source.lastIndexOf("\n", start - 1) + 1;
+  const lineEnd = source.indexOf("\n", end);
+  return (
+    source.slice(lineStart, start).trim() === "" &&
+    source.slice(end, lineEnd === -1 ? source.length : lineEnd).trim() === ""
+  );
+}
+
+/** A numbered equation written on a line of its own, as a display equation. */
+function taggedDisplayMath(node: MathAstNode, source: string): MathAstNode | null {
+  if (node.type !== "inlineMath") return null;
+  const value = typeof node.value === "string" ? node.value : "";
+  if (!TAG_COMMAND.test(value) || !standsAloneOnLine(node, source)) return null;
+  return displayMath(value, node.position);
+}
+
+/**
+ * One paragraph's worth of nodes, without the soft break the equation next to
+ * them was separated by. Only the edges are touched: the spaces between a
+ * paragraph's own words are part of it.
+ */
+function trimmedSegment(nodes: MathAstNode[]): MathAstNode | null {
+  const children = [...nodes];
+  for (const edge of [
+    { index: 0, pattern: LEADING_SOFT_BREAK },
+    { index: children.length - 1, pattern: TRAILING_SOFT_BREAK },
+  ]) {
+    const node = children[edge.index];
+    if (node?.type !== "text" || typeof node.value !== "string") continue;
+    children[edge.index] = { ...node, value: node.value.replace(edge.pattern, "") };
+  }
+
+  const blank = (node: MathAstNode | undefined) => node !== undefined && isBlank(node);
+  while (blank(children[0])) children.shift();
+  while (blank(children[children.length - 1])) children.pop();
+
+  const [first] = children;
+  const last = children[children.length - 1];
+  if (first === undefined || last === undefined) return null;
+  return {
+    type: "paragraph",
+    children,
+    position: { start: first.position?.start, end: last.position?.end },
+  };
+}
+
+/**
+ * A paragraph with its tagged equations hoisted out into display blocks of
+ * their own, and the prose between them kept as paragraphs. Null when the
+ * paragraph holds no equation to hoist.
+ */
+function hoistTaggedEquations(node: MathAstNode, source: string): MathAstNode[] | null {
+  const children = node.type === "paragraph" ? (node.children ?? []) : [];
+  if (!children.some((child) => taggedDisplayMath(child, source) !== null)) return null;
+
+  const blocks: MathAstNode[] = [];
+  let prose: MathAstNode[] = [];
+  for (const child of children) {
+    const equation = taggedDisplayMath(child, source);
+    if (equation === null) {
+      prose.push(child);
+      continue;
+    }
+    const segment = trimmedSegment(prose);
+    if (segment !== null) blocks.push(segment);
+    blocks.push(equation);
+    prose = [];
+  }
+  const tail = trimmedSegment(prose);
+  if (tail !== null) blocks.push(tail);
+  return blocks;
 }
 
 /**
@@ -201,8 +290,22 @@ export function createDollarMathPlugin() {
             continue;
           }
 
+          const hoisted = hoistTaggedEquations(child, source);
+          if (hoisted !== null) {
+            children.splice(index, 1, ...hoisted);
+            // Step back onto the first block the split produced: none of them
+            // holds a tagged equation any more, so this cannot loop.
+            index -= 1;
+            continue;
+          }
+
+          // A `$$` fence micromark found in the source, as opposed to a
+          // display equation this plugin built out of a single-dollar span,
+          // which has no fence of its own to have left open.
+          const fenced = nodeSource(child, source)?.startsWith("$$") === true;
           if (
             child.type === "math" &&
+            fenced &&
             !CLOSING_FENCE_LINE.test(nodeSource(child, source) ?? "$$\n$$")
           ) {
             const recovered = parse === null ? null : recoverRunaway(child, source);

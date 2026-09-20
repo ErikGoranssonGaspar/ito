@@ -808,6 +808,32 @@ describe("ChatMarkdown math", () => {
     expect(html).toContain("\\frac{1");
   });
 
+  it("gives a numbered equation on its own line a display block", () => {
+    const text = [
+      "**Proposition 1.** *Define*",
+      "$c_z=\\frac{\\sigma^2 zB}{2\\kappa}. \\tag{1}$",
+      "*Fix $s$ and suppose that $D_z$ has no zero.*",
+    ].join("\n");
+
+    const html = renderToStaticMarkup(<ChatMarkdown cwd="/tmp/project" text={text} />);
+
+    // `\tag` is display-only: inline, KaTeX renders the equation as red source.
+    expect(html).not.toContain("katex-error");
+    expect(renderedTex(html)).toEqual(["c_z=\\frac{\\sigma^2 zB}{2\\kappa}. \\tag{1}", "s", "D_z"]);
+    expect(html).toContain("katex-display");
+    expect(html).toContain("<strong>Proposition 1.</strong>");
+    expect(html).toContain("<em>Define</em>");
+  });
+
+  it("keeps a tagged equation inline when it shares its line with prose", () => {
+    const html = renderToStaticMarkup(
+      <ChatMarkdown cwd="/tmp/project" text="As shown, $x = 1 \\tag{2}$ holds." />,
+    );
+
+    expect(html).not.toContain("katex-display");
+    expect(html).toContain("holds.");
+  });
+
   it("leaves dollars inside code alone", () => {
     const html = renderToStaticMarkup(
       <ChatMarkdown cwd="/tmp/project" text={"Run `$x$` then\n\n```sh\necho $x$\n```"} />,
