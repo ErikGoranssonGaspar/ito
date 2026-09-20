@@ -160,3 +160,82 @@ question of what to feed it, not of rewriting it.
 - Mobile. The sidebar is an overlay there and closes on navigation
   (`closeMobileSidebar`), so an explorer inside it has to close the same way after opening
   a file.
+
+## Interactive artifacts in the chat transcript (MCP Apps)
+
+A tool result can only ever become text in the transcript. There is no way for a chart, a
+slider over a parameter, or a small applet to appear inline the way Claude's and ChatGPT's
+artifacts do — which for an applied-maths workspace is the difference between reading a
+number and turning a knob on it.
+
+**There is a standard, and it settled.** The community `mcp-ui` project was adopted as
+**MCP Apps**, the first official MCP extension (SEP-1865, published 2026-01-26,
+co-authored by the mcp-ui maintainers, Anthropic and OpenAI). Claude web/desktop, ChatGPT,
+Goose and VS Code Insiders render it. The shape:
+
+- A server exposes a UI resource under `ui://<server>/<id>` — bundled HTML/CSS/JS.
+- A tool points at one via `_meta.ui.resourceUri` in its declaration; `_meta.ui.maxHeight`
+  caps the rendered height.
+- The host renders the resource in a sandboxed iframe and opens a JSON-RPC-over-
+  `postMessage` channel to it. Over that channel the UI receives the tool result, calls
+  server tools back, and can push text into model context.
+- Host duties: fetch and cache the HTML, set the sandbox attributes, and gate
+  UI-initiated tool calls behind user approval.
+
+SDKs exist for both ends — `@modelcontextprotocol/ext-apps`, and `@mcp-ui/client` whose
+`AppRenderer` is a React component with a legacy mcp-ui adapter. So neither the protocol
+nor the renderer has to be invented here.
+
+**The reference implementation to read.** opencode PR #15926, "feat: add MCP Apps support
+for rich iframe UIs" — open, not merged, as of 2026-09-20. It adds `GET /mcp-app/resource`
+to fetch and cache the HTML for a `ui://` URI, `POST /mcp-app/tool-call` to proxy calls
+from the iframe back to the MCP server, an `AppBridge` handshake, a 640px default
+`maxHeight`, and filtering to hide such tools from the model when appropriate. That is
+close to the division of labour Itô would need.
+
+**The architectural problem is which process is the host.** Itô is not an MCP client. The
+`apps/server/src/mcp` directory is Itô _serving_ its own toolkits (preview, device, pull
+requests) to an agent — `McpHttpServer.ts`, `McpSessionRegistry.ts`,
+`McpProviderSession.ts`. External MCP servers are configured and connected by the coding
+agents themselves (Claude Code, Codex, opencode), and their results reach the renderer as
+`mcp_tool_call` work entries (`packages/contracts/src/providerRuntime.ts:109`), rendered
+today as a `wrench` icon over a JSON dump (`MessagesTimeline.tsx:4454`). So before any
+rendering work:
+
+- **Does `_meta` survive the agent CLI?** `toolData` is typed `unknown` and passed through
+  (`packages/client-runtime/src/work-log/presentation.ts:32`,
+  `apps/web/src/session-logic.ts:74`), so the payload may already carry `_meta.ui`. Check
+  per adapter — `ClaudeAdapter.ts`, `CodexAdapter.ts`, `OpenCodeAdapter.ts` — because an
+  agent that flattens tool results to text has thrown the `resourceUri` away and no
+  renderer-side work can recover it.
+- **Who fetches the `ui://` resource?** If only the agent holds the MCP connection, Itô
+  cannot resolve the URI itself, and the choice is between asking the agent to inline the
+  HTML in the result or having Itô open its own client connection to the same server —
+  which means duplicating MCP server configuration that currently lives in each agent's
+  own config.
+- **Where do the iframe's tool calls go?** The `postMessage` channel needs a route back to
+  a live MCP session. `PreviewAutomationBroker.ts` already brokers renderer↔server↔MCP
+  traffic for preview automation and is the closest existing precedent.
+
+**What a fix has to get right.**
+
+- Sandboxing is the whole safety story. Untrusted HTML from a third-party server runs in
+  the transcript. The existing `<webview>` in `PreviewView.tsx` and the iframe in
+  `BrowserDocumentFrame.tsx` are the precedents for what Itô already allows; an artifact
+  frame wants tighter settings than either, and must not inherit node integration.
+- Approval. UI-initiated tool calls are the model's permission problem all over again.
+  `ComposerPendingApprovalPanel.tsx` is the existing surface and should be reused rather
+  than a second approval path grown inside the frame.
+- Transcript layout. A new block type in `MessagesTimeline.tsx` that survives
+  virtualization, collapse/expand, and copy-as-Markdown — a frame that reloads on every
+  scroll, or loses slider state when its row recycles, is worse than the JSON dump.
+- Persistence. Artifacts have to render when a thread is reopened, so the resource HTML
+  and the result payload need to live with the work entry, not only in the live session.
+- Don't confuse this with `codexArtifactTemplates.ts`. Those are Codex's document,
+  presentation and spreadsheet _skill templates_, unrelated to renderable UI.
+
+**The alternative, for the record.** Generative UI as done by the Vercel AI SDK or
+assistant-ui has the model emit a component the host maps to React. It needs no MCP server
+and would suit a first-party "plot this" tool, but it is a per-framework convention with
+no interoperability. MCP Apps is the one worth building against; a first-party plotting
+toolkit inside `apps/server/src/mcp/toolkits` could then be its first consumer.
