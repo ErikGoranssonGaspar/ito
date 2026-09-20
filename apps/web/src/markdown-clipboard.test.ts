@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { serializeRenderedMarkdownFragment } from "./markdown-clipboard";
+import { mathElementForSelection, serializeRenderedMarkdownFragment } from "./markdown-clipboard";
 import { EnvironmentId, MessageId, ThreadId } from "@ito/contracts";
 import {
   collectAssistantCitations,
@@ -20,6 +20,7 @@ class FakeText {
 class FakeElement {
   readonly nodeType = ELEMENT_NODE;
   readonly childNodes: Array<FakeElement | FakeText> = [];
+  parentElement: FakeElement | null = null;
   readonly classList = {
     contains: (name: string) => this.classNames.includes(name),
   };
@@ -29,6 +30,10 @@ class FakeElement {
     private readonly classNames: ReadonlyArray<string> = [],
     private readonly attributes: Readonly<Record<string, string>> = {},
   ) {}
+
+  get self(): FakeElement {
+    return this;
+  }
 
   get localName(): string {
     return this.tagName.toLowerCase();
@@ -43,6 +48,9 @@ class FakeElement {
   }
 
   append(...children: Array<FakeElement | FakeText>): this {
+    for (const child of children) {
+      if (child instanceof FakeElement) child.parentElement = this;
+    }
     this.childNodes.push(...children);
     return this;
   }
@@ -55,8 +63,18 @@ class FakeElement {
     return Object.hasOwn(this.attributes, name);
   }
 
-  closest(): FakeElement | null {
-    return null;
+  /** Supports the comma-separated `.class` and tag selectors this module asks for. */
+  closest(selector: string): FakeElement | null {
+    const parts = selector.split(",").map((part) => part.trim());
+    const matches = (element: FakeElement) =>
+      parts.some((part) =>
+        part.startsWith(".")
+          ? element.classList.contains(part.slice(1))
+          : element.tagName === part.toUpperCase(),
+      );
+    const climb = (element: FakeElement | null): FakeElement | null =>
+      element === null ? null : matches(element) ? element : climb(element.parentElement);
+    return climb(this.self);
   }
 
   /** Supports only the selectors markdown-clipboard actually asks for. */
@@ -125,6 +143,76 @@ function renderedMath(tex: string, display: boolean): FakeElement {
   const katex = new FakeElement("SPAN", ["katex"]).append(mathml, visual);
   return display ? new FakeElement("SPAN", ["katex-display"]).append(katex) : katex;
 }
+
+/**
+ * A drag from one end of an equation to the other puts both endpoints inside
+ * KaTeX's own spans, and `cloneContents` leaves their common ancestor out of
+ * the fragment it clones — so the equation has to be recovered from the live
+ * element instead. This is the lookup that finds it.
+ */
+describe("mathElementForSelection", () => {
+  beforeEach(() => {
+    vi.stubGlobal("Node", { TEXT_NODE, ELEMENT_NODE });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function displayMathTree() {
+    const annotation = new FakeElement("ANNOTATION", [], {
+      encoding: "application/x-tex",
+    }).append(new FakeText("E = mc^2"));
+    const mathml = new FakeElement("SPAN", ["katex-mathml"]).append(annotation);
+    const visual = new FakeElement("SPAN", ["katex-html"], { "aria-hidden": "true" }).append(
+      new FakeText("glyph soup"),
+    );
+    const katex = new FakeElement("SPAN", ["katex"]).append(mathml, visual);
+    const display = new FakeElement("SPAN", ["katex-display"]).append(katex);
+    new FakeElement("DIV", ["chat-markdown"]).append(display);
+    return { display, katex, mathml, annotation, visual };
+  }
+
+  it("resolves a node inside display math to the outer element, which carries the $$ form", () => {
+    const { display, mathml } = displayMathTree();
+
+    expect(mathElementForSelection(mathml as unknown as Element)).toBe(display);
+  });
+
+  it("resolves a node inside inline math to its katex root", () => {
+    const katex = new FakeElement("SPAN", ["katex"]).append(
+      new FakeElement("SPAN", ["katex-mathml"]),
+    );
+    const inner = katex.children[0];
+    new FakeElement("P").append(katex);
+
+    expect(mathElementForSelection(inner as unknown as Element)).toBe(katex);
+  });
+
+  it("resolves a node inside unparseable math to the error element", () => {
+    const error = new FakeElement("SPAN", ["katex-error"]).append(new FakeText("\\frac{1"));
+    new FakeElement("P").append(error);
+
+    expect(mathElementForSelection(error as unknown as Element)).toBe(error);
+  });
+
+  it("leaves ordinary prose alone", () => {
+    const paragraph = new FakeElement("P").append(new FakeText("no math here"));
+    new FakeElement("DIV", ["chat-markdown"]).append(paragraph);
+
+    expect(mathElementForSelection(paragraph as unknown as Element)).toBe(null);
+  });
+
+  it("serializes the element it finds as a whole equation, not as glyphs", () => {
+    const { mathml } = displayMathTree();
+    const found = mathElementForSelection(mathml as unknown as Element);
+    // What the payload builder does once it has the element: serialize that
+    // in place of the partial fragment the range cloned.
+    const container = new FakeElement("DIV").append(found as unknown as FakeElement);
+
+    expect(serializeRenderedMarkdownFragment(asNode(container))).toBe("$$\nE = mc^2\n$$");
+  });
+});
 
 describe("serializeRenderedMarkdownFragment", () => {
   it("copies a popover context reference once, without its details or nested label", () => {

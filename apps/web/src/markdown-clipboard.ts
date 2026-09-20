@@ -413,6 +413,25 @@ function sanitizedHtmlFrom(container: Element): string {
   return `<meta charset="utf-8">${container.innerHTML}`;
 }
 
+/**
+ * The equation a selection is trapped inside, if any.
+ *
+ * `cloneContents` never includes the range's own common ancestor, so a
+ * selection drawn from one end of an equation to the other — the obvious way
+ * to copy one — clones only KaTeX's children: the MathML meant for screen
+ * readers beside the spans meant for sight. Serializing those gives exactly
+ * the doubled, glyph-by-glyph nonsense `serializeMath` exists to prevent,
+ * because the one element that would have triggered it is the one element
+ * left out. An equation is only recoverable whole, so a selection inside one
+ * copies the whole thing.
+ */
+export function mathElementForSelection(element: Element | null | undefined): Element | null {
+  if (!element) return null;
+  // Display math nests `.katex` inside `.katex-display`, and only the outer
+  // one serializes to the `$$` form, so it wins when both are above the range.
+  return element.closest(".katex-display") ?? element.closest(".katex, .katex-error");
+}
+
 export function chatMarkdownClipboardPayload(
   selection: Selection,
 ): MarkdownClipboardPayload | null {
@@ -426,7 +445,11 @@ export function chatMarkdownClipboardPayload(
     const ancestor = range.commonAncestorContainer;
     const ancestorElement =
       ancestor.nodeType === Node.ELEMENT_NODE ? (ancestor as Element) : ancestor.parentElement;
-    if (ancestorElement?.closest("pre")) {
+    const math = mathElementForSelection(ancestorElement);
+    if (math) {
+      // Serialize and sanitize the equation itself, not the partial clone.
+      container.replaceChildren(math.cloneNode(true));
+    } else if (ancestorElement?.closest("pre")) {
       const text = range.toString();
       if (text) {
         texts.push(text);
