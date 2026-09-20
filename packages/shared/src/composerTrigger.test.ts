@@ -15,6 +15,23 @@ describe("detectComposerTrigger", () => {
       });
     },
   );
+
+  it("stays quiet on a dollar that is already an equation's delimiter", () => {
+    // Cursor just after the opening `$x` of a finished equation.
+    const text = "let $x = 1$ hold";
+    expect(detectComposerTrigger(text, "let $x".length)).toBeNull();
+    expect(detectComposerTrigger(text, text.indexOf("$") + 1)).toBeNull();
+  });
+
+  it("still opens on a mention typed alongside an equation", () => {
+    const text = "given $x = 1$ run $rev";
+    expect(detectComposerTrigger(text, text.length)).toEqual({
+      kind: "skill",
+      query: "rev",
+      rangeStart: text.lastIndexOf("$rev"),
+      rangeEnd: text.length,
+    });
+  });
 });
 
 describe("serializeComposerFileLink", () => {

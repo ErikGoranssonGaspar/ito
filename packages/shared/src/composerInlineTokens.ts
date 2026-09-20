@@ -1,3 +1,5 @@
+import { collectDollarMathSpans, isInsideDollarMath } from "./composerMathSpans.ts";
+
 export type ComposerInlineToken =
   | {
       readonly type: "mention";
@@ -14,6 +16,19 @@ export type ComposerInlineToken =
       readonly end: number;
     };
 
+export interface ComposerSkillMention {
+  readonly name: string;
+  /** Offset of the currency symbol that opens the mention. */
+  readonly start: number;
+  /** Offset just past the name. */
+  readonly end: number;
+}
+
+export interface CollectComposerSkillMentionsOptions {
+  /** Let a mention at the very end of the text count, for an already-sent prompt. */
+  readonly allowEndOfText?: boolean;
+}
+
 export interface CollectComposerInlineTokensOptions {
   readonly preserveTrailingFrom?: ReadonlyArray<ComposerInlineToken>;
 }
@@ -24,9 +39,16 @@ export interface CollectComposerInlineTokensOptions {
  * the composer chips any matched `$name` token, known or not. Tokens beginning
  * with digits must not match numbers with currency/exponent suffixes, and must
  * contain at least one letter.
+ *
+ * This is the one definition of the shape. The composer, the timeline chips and
+ * all three provider dispatchers read it through `collectComposerSkillMentions`
+ * so a rendered chip and a dispatched skill can never be different sets.
  */
-const SKILL_TOKEN_REGEX =
-  /(^|\s)\p{Sc}(?![0-9][0-9_]*(?:[kKmMbBtT]|[eE][0-9]+)?(?:\s|$))(?=[a-zA-Z0-9:_-]*[a-zA-Z])([a-zA-Z0-9][a-zA-Z0-9:_-]*)(?=\s)/gu;
+const SKILL_TOKEN_BODY = String.raw`(^|\s)\p{Sc}(?![0-9][0-9_]*(?:[kKmMbBtT]|[eE][0-9]+)?(?:\s|$))(?=[a-zA-Z0-9:_-]*[a-zA-Z])([a-zA-Z0-9][a-zA-Z0-9:_-]*)`;
+/** In the live composer a token still being typed is not yet a token. */
+const SKILL_TOKEN_REGEX = new RegExp(String.raw`${SKILL_TOKEN_BODY}(?=\s)`, "gu");
+/** On a prompt that has been sent, the last token ends at the end of the text. */
+const SKILL_MENTION_REGEX = new RegExp(String.raw`${SKILL_TOKEN_BODY}(?=\s|$)`, "gu");
 const MENTION_TOKEN_REGEX = /(^|\s)@(?:"((?:\\.|[^"\\])*)"|([^\s@"]+))(?=\s)/g;
 /**
  * The label body is bounded rather than `*`. Unbounded, every whitespace in
@@ -102,27 +124,67 @@ function collectMentionTokens(text: string): ComposerInlineToken[] {
   return matches;
 }
 
+/**
+ * Every `$skill` mention in `text`, with the dollars that open a math span left
+ * alone: `$x = 1$` is an equation the transcript renders as one, not a mention
+ * of a skill called `x`.
+ */
+export function collectComposerSkillMentions(
+  text: string,
+  options: CollectComposerSkillMentionsOptions = {},
+): ReadonlyArray<ComposerSkillMention> {
+  const pattern = options.allowEndOfText ? SKILL_MENTION_REGEX : SKILL_TOKEN_REGEX;
+  const mathSpans = collectDollarMathSpans(text);
+  const mentions: ComposerSkillMention[] = [];
+  for (const match of text.matchAll(pattern)) {
+    const name = match[2] ?? "";
+    if (!name) {
+      continue;
+    }
+    const start = (match.index ?? 0) + (match[1]?.length ?? 0);
+    if (isInsideDollarMath(mathSpans, start)) {
+      continue;
+    }
+    mentions.push({ name, start, end: (match.index ?? 0) + match[0].length });
+  }
+  return mentions;
+}
+
+/**
+ * Rewrite each mention through `replace`, which returns the replacement text or
+ * null to leave that mention as the user wrote it.
+ */
+export function rewriteComposerSkillMentions(
+  text: string,
+  replace: (mention: ComposerSkillMention) => string | null,
+): string {
+  const mentions = collectComposerSkillMentions(text, { allowEndOfText: true });
+  let result = "";
+  let cursor = 0;
+  for (const mention of mentions) {
+    const replacement = replace(mention);
+    if (replacement === null) {
+      continue;
+    }
+    result += text.slice(cursor, mention.start) + replacement;
+    cursor = mention.end;
+  }
+  return cursor === 0 ? text : result + text.slice(cursor);
+}
+
 export function collectComposerInlineTokens(
   text: string,
   options: CollectComposerInlineTokensOptions = {},
 ): ReadonlyArray<ComposerInlineToken> {
   const matches = collectMentionTokens(text);
 
-  for (const match of text.matchAll(SKILL_TOKEN_REGEX)) {
-    const fullMatch = match[0];
-    const prefix = match[1] ?? "";
-    const value = match[2] ?? "";
-    if (!value) {
-      continue;
-    }
-    const start = (match.index ?? 0) + prefix.length;
-    const end = start + fullMatch.length - prefix.length;
+  for (const mention of collectComposerSkillMentions(text)) {
     matches.push({
       type: "skill",
-      value,
-      source: text.slice(start, end),
-      start,
-      end,
+      value: mention.name,
+      source: text.slice(mention.start, mention.end),
+      start: mention.start,
+      end: mention.end,
     });
   }
 

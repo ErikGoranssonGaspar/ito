@@ -461,6 +461,17 @@ describe("Cursor skills", () => {
     );
   });
 
+  it("leaves a skill name that is only an equation's variable alone", () => {
+    const names = new Set(["review", "x"]);
+    expect(hasCursorSkillMention("let $x = 1$ hold")).toBe(false);
+    expect(rewriteCursorSkillMentions("let $review + 1$ hold", names)).toBe(
+      "let $review + 1$ hold",
+    );
+    expect(rewriteCursorSkillMentions("given $x = 1$ please $review this", names)).toBe(
+      "given $x = 1$ please /review this",
+    );
+  });
+
   it("rewrites currency-prefixed skill mentions into Cursor slash invocations", () => {
     const names = new Set(["review", "2spec", "20k", "100M", "1e6"]);
     for (const symbol of ["€", "£", "¥", "₹", "₩", "₿", "𑿝"]) {

@@ -43,6 +43,19 @@ describe("splitPromptIntoComposerSegments", () => {
     ]);
   });
 
+  it("keeps an inline equation as one editable run of text", () => {
+    // As a chip, `$x` would be a single cursor position: you could not move
+    // through or backspace into the middle of your own equation.
+    expect(splitPromptIntoComposerSegments("let $x = 1$ hold")).toEqual([
+      { type: "text", text: "let $x = 1$ hold" },
+    ]);
+    expect(splitPromptIntoComposerSegments("given $x = 1$ run $review now")).toEqual([
+      { type: "text", text: "given $x = 1$ run " },
+      { type: "skill", name: "review", source: "$review" },
+      { type: "text", text: " now" },
+    ]);
+  });
+
   it("does not convert an incomplete trailing mention token", () => {
     expect(splitPromptIntoComposerSegments("Inspect @AGENTS.md")).toEqual([
       { type: "text", text: "Inspect @AGENTS.md" },

@@ -190,4 +190,29 @@ describe("collectComposerInlineTokens", () => {
     expect(collectComposerInlineTokens(" [[".repeat(40_000))).toEqual([]);
     expect(performance.now() - started).toBeLessThan(1_000);
   });
+  it("leaves the dollars of an inline equation out of the token stream", () => {
+    // `$x` here is a delimiter and a variable, not a mention of a skill named x.
+    expect(collectComposerInlineTokens("let $x = 1$ hold")).toEqual([]);
+    expect(collectComposerInlineTokens("let $x \\in A$ be given")).toEqual([]);
+    expect(collectComposerInlineTokens("$$a = b$$ and $c + d$ too")).toEqual([]);
+  });
+
+  it("still chips a skill named in the same prompt as an equation", () => {
+    const tokens = collectComposerInlineTokens("given $x = 1$ run $review now");
+
+    expect(tokens).toEqual([
+      { type: "skill", value: "review", source: "$review", start: 18, end: 25 },
+    ]);
+  });
+
+  it("chips an unclosed dollar, which is every mention there is", () => {
+    expect(collectComposerInlineTokens("run $review now")).toEqual([
+      { type: "skill", value: "review", source: "$review", start: 4, end: 11 },
+    ]);
+    // Two mentions pair into a span whose content ends in a space, so the
+    // prose rule hands both of them back.
+    expect(
+      collectComposerInlineTokens("run $deploy then $verify now").map((token) => token.value),
+    ).toEqual(["deploy", "verify"]);
+  });
 });

@@ -24,13 +24,10 @@
  * @module provider/Drivers/ClaudeSkillDispatch
  */
 
-/**
- * Same token shape the composer and timeline chips recognise
- * (`packages/shared/src/composerInlineTokens.ts`), so a rendered chip and a
- * dispatched skill are always the same set.
- */
-const SKILL_MENTION_PATTERN =
-  /(^|\s)\p{Sc}(?![0-9][0-9_]*(?:[kKmMbBtT]|[eE][0-9]+)?(?:\s|$))(?=[a-zA-Z0-9:_-]*[a-zA-Z])([a-zA-Z0-9][a-zA-Z0-9:_-]*)(?=\s|$)/gu;
+// The composer, the timeline chips and this dispatcher all read mentions
+// through one scanner, so a rendered chip and a dispatched skill are always the
+// same set — including the dollars it declines to read, which belong to math.
+import { collectComposerSkillMentions } from "@ito/shared/composerInlineTokens";
 
 export interface ClaudeSkillDispatch {
   /** Text before the dispatched mention, or `undefined` when it opens the prompt. */
@@ -50,12 +47,9 @@ export function planClaudeSkillDispatch(
   prompt: string,
   skillNames: ReadonlySet<string>,
 ): ClaudeSkillDispatch | undefined {
-  const mentions = [...prompt.matchAll(SKILL_MENTION_PATTERN)].flatMap((match) => {
-    const name = match[2] ?? "";
-    if (!skillNames.has(name)) return [];
-    const start = (match.index ?? 0) + (match[1]?.length ?? 0);
-    return [{ name, start, end: (match.index ?? 0) + match[0].length }];
-  });
+  const mentions = collectComposerSkillMentions(prompt, { allowEndOfText: true }).filter(
+    (mention) => skillNames.has(mention.name),
+  );
   const last = mentions.at(-1);
   if (!last) {
     return undefined;

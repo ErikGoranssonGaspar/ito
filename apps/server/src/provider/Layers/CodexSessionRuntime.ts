@@ -17,6 +17,7 @@ import {
   ThreadId,
   TurnId,
 } from "@ito/contracts";
+import { rewriteComposerSkillMentions } from "@ito/shared/composerInlineTokens";
 import { resolveSpawnCommand } from "@ito/shared/shell";
 import { normalizeModelSlug } from "@ito/shared/model";
 import * as Crypto from "effect/Crypto";
@@ -605,10 +606,6 @@ function buildCodexCollaborationMode(input: {
   };
 }
 
-// Match the skill grammar used by Claude/Cursor, leaving currency amounts as prose.
-const SKILL_MENTION_PATTERN =
-  /(^|\s)\p{Sc}(?![0-9][0-9_]*(?:[kKmMbBtT]|[eE][0-9]+)?(?:\s|$))(?=[a-zA-Z0-9:_-]*[a-zA-Z])([a-zA-Z0-9][a-zA-Z0-9:_-]*)(?=\s|$)/gu;
-
 export function buildTurnStartParams(input: {
   readonly threadId: string;
   readonly runtimeMode: RuntimeMode;
@@ -631,7 +628,8 @@ export function buildTurnStartParams(input: {
   if (input.prompt) {
     turnInput.push({
       type: "text",
-      text: input.prompt.replace(SKILL_MENTION_PATTERN, "$1$$$2"),
+      // Codex parses `$name` natively; normalise any other currency symbol onto it.
+      text: rewriteComposerSkillMentions(input.prompt, (mention) => `$${mention.name}`),
     });
   }
   for (const attachment of input.attachments ?? []) {

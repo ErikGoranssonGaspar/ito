@@ -1,6 +1,7 @@
 import { Children, cloneElement, isValidElement, type ReactNode } from "react";
 import type { ServerProviderSkill } from "@ito/contracts";
 import { formatProviderSkillDisplayName } from "@ito/client-runtime/providerSkills";
+import { collectComposerSkillMentions } from "@ito/shared/composerInlineTokens";
 
 import {
   CHAT_INLINE_CHIP_CLASS_NAME,
@@ -11,20 +12,14 @@ import {
 } from "../composerInlineChip";
 import { cn } from "~/lib/utils";
 
-const SKILL_TOKEN_REGEX =
-  /(^|\s)\p{Sc}(?![0-9][0-9_]*(?:[kKmMbBtT]|[eE][0-9]+)?(?:\s|$))(?=[a-zA-Z0-9:_-]*[a-zA-Z])([a-zA-Z0-9][a-zA-Z0-9:_-]*)(?=\s|$)/gu;
-
 type InlineSkill = Pick<ServerProviderSkill, "name" | "displayName">;
 
 export function SkillInlineText(props: { text: string; skills: ReadonlyArray<InlineSkill> }) {
   const nodes: ReactNode[] = [];
   let cursor = 0;
 
-  for (const match of props.text.matchAll(SKILL_TOKEN_REGEX)) {
-    const prefix = match[1] ?? "";
-    const name = match[2] ?? "";
-    const start = (match.index ?? 0) + prefix.length;
-    const rawText = `$${name}`;
+  for (const mention of collectComposerSkillMentions(props.text, { allowEndOfText: true })) {
+    const { name, start } = mention;
     const skill = props.skills.find((candidate) => candidate.name === name);
     if (!skill) {
       continue;
@@ -33,8 +28,8 @@ export function SkillInlineText(props: { text: string; skills: ReadonlyArray<Inl
     if (start > cursor) {
       nodes.push(props.text.slice(cursor, start));
     }
-    nodes.push(<SkillChip key={`${start}:${name}`} skill={skill} rawText={rawText} />);
-    cursor = (match.index ?? 0) + match[0].length;
+    nodes.push(<SkillChip key={`${start}:${name}`} skill={skill} rawText={`$${name}`} />);
+    cursor = mention.end;
   }
 
   if (cursor === 0) {

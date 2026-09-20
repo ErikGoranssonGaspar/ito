@@ -11,6 +11,10 @@
 import * as NodeOS from "node:os";
 
 import type { ServerProviderSkill } from "@ito/contracts";
+import {
+  collectComposerSkillMentions,
+  rewriteComposerSkillMentions,
+} from "@ito/shared/composerInlineTokens";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
@@ -19,9 +23,6 @@ import * as Schema from "effect/Schema";
 import { parse as parseYamlDocument } from "yaml";
 
 const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
-const SKILL_MENTION_PATTERN =
-  /(^|\s)\p{Sc}(?![0-9][0-9_]*(?:[kKmMbBtT]|[eE][0-9]+)?(?:\s|$))(?=[a-zA-Z0-9:_-]*[a-zA-Z])([a-zA-Z0-9][a-zA-Z0-9:_-]*)(?=\s|$)/gu;
-const HAS_SKILL_MENTION_PATTERN = new RegExp(SKILL_MENTION_PATTERN.source, "u");
 const MAX_SKILL_DEPTH = 10;
 const MAX_SKILL_BYTES = FileSystem.Size(1_000_000);
 const MAX_SKILL_SCAN_ENTRIES = 10_000;
@@ -276,14 +277,14 @@ export const probeCursorSkills = Effect.fn("probeCursorSkills")(function* (
 
 /** Cursor invokes Agent Skills with `/name`; Ito composers insert `$name`. */
 export function hasCursorSkillMention(prompt: string): boolean {
-  return HAS_SKILL_MENTION_PATTERN.test(prompt);
+  return collectComposerSkillMentions(prompt, { allowEndOfText: true }).length > 0;
 }
 
 export function rewriteCursorSkillMentions(
   prompt: string,
   skillNames: ReadonlySet<string>,
 ): string {
-  return prompt.replace(SKILL_MENTION_PATTERN, (match, prefix: string, name: string) =>
-    skillNames.has(name) ? `${prefix}/${name}` : match,
+  return rewriteComposerSkillMentions(prompt, (mention) =>
+    skillNames.has(mention.name) ? `/${mention.name}` : null,
   );
 }

@@ -79,4 +79,19 @@ describe("planClaudeSkillDispatch", () => {
       ).toBeUndefined();
     }
   });
+  it("does not dispatch a skill named by an equation's delimiter", () => {
+    // `$review` is a skill, but here the dollars delimit math: rewriting this
+    // to `/review` would run a skill the user never asked for.
+    const skills = new Set([...SKILLS, "x"]);
+    expect(planClaudeSkillDispatch("let $x = 1$ hold", skills)).toBeUndefined();
+    expect(planClaudeSkillDispatch("let $review + 1$ hold", skills)).toBeUndefined();
+  });
+
+  it("still dispatches a mention written beside an equation", () => {
+    expect(planClaudeSkillDispatch("given $x = 1$ run $review", SKILLS)).toEqual({
+      leadingText: "given $x = 1$ run",
+      commandText: "/review",
+      skillName: "review",
+    });
+  });
 });

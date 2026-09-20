@@ -4,6 +4,7 @@ import {
   serializeAssistantCitation,
   withAssistantCitationComment,
 } from "@ito/shared/assistantCitations";
+import { collectDollarMathSpans, isInsideDollarMath } from "@ito/shared/composerMathSpans";
 import {
   splitPromptIntoComposerSegments,
   type ComposerPromptSegment,
@@ -246,6 +247,11 @@ export function detectComposerTrigger(text: string, cursorInput: number): Compos
   }
   const skillPrefix = /^\p{Sc}/u.exec(token);
   if (skillPrefix) {
+    // A dollar already sitting inside an equation is a delimiter, not a skill
+    // prefix, so editing `$x = 1$` must not reopen the skill picker.
+    if (isInsideDollarMath(collectDollarMathSpans(text), tokenStart)) {
+      return null;
+    }
     return {
       kind: "skill",
       query: token.slice(skillPrefix[0].length),
