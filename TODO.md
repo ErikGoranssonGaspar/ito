@@ -38,6 +38,53 @@ $10` must stay ordinary text here too, or pasted prose stops taking styling.
 **Workaround until then.** Turning off Markdown styling in settings (`richTextEnabled`)
 disables the marks and their input rules, and pasted LaTeX survives verbatim.
 
+## Inline math turns into a skill chip
+
+`$` is the composer's skill prefix, so writing or pasting inline math claims the first
+token after the dollar as a skill name. `$x = 1$` becomes a `$x` chip followed by
+` = 1$`; `let $x \in A$ be` loses the same way. Only math whose body is a single token —
+`$x$`, `$n$-th` — survives, because the token has to be followed by whitespace to match,
+and `$$…$$` is safe for the same reason (the character after the first `$` is another
+`$`). So the rule in practice is: any inline equation with a space in it breaks.
+
+**What happens.** `SKILL_TOKEN_REGEX` (`packages/shared/src/composerInlineTokens.ts:29`)
+matches `$` (any `\p{Sc}`) plus an identifier run, and `collectComposerInlineTokens`
+hands it to `splitPromptIntoComposerSegments`, which emits a `skill` segment
+(`apps/web/src/composer-editor-mentions.ts:131`) that Tiptap renders as an atomic chip.
+The regex already carves out money — `$20`, `$100M`, `$1e6` stay prose — but nothing
+knows about math. A separate trigger fires while typing: `detectComposerTrigger`
+(`apps/web/src/composer-logic.ts:247`, mirrored in
+`packages/shared/src/composerTrigger.ts:111`) opens the skill picker on `$` followed by
+anything, so starting an equation pops up a menu.
+
+**How bad it gets.** For a name no skill has, the chip still serializes back to `$x`, so
+the text that is sent is intact and the damage is editing: the chip is one cursor
+position (`collapsedSegmentLength`), so you cannot move through or backspace into the
+middle of your own equation, and the sent message renders the same chip in the transcript
+(`SkillInlineText.tsx:15`) instead of math. For a name that collides with a real skill it
+is worse: `planClaudeSkillDispatch`
+(`apps/server/src/provider/Drivers/ClaudeSkillDispatch.ts:33`) splits the prompt around
+the last such mention, rewrites it to `/name`, trims the pieces, and Claude Code runs the
+skill. `CodexSessionRuntime.ts:610` and `CursorSkills.ts:23` carry the same pattern.
+
+**Fix direction.** Teach the token scanner that a `$` opening a math span is not a skill
+prefix. The renderer already decides this precisely: `prosaicDollarSource`
+(`apps/web/src/markdown-math.ts:78`) treats a `$…$` span as math unless its body is
+space-padded or a bare amount, which is why `$x = 1$` renders as an equation and `$5 and
+$10` does not. The chip rule should agree with it, so what the composer chips and what the
+transcript renders as math can never both claim the same dollar. The catch is that the
+full token regex is copied five times — the shared tokenizer, the chat renderer, and the
+three provider dispatchers — with the two trigger detectors carrying a looser `^\p{Sc}`
+of their own. A rule added to only some of them makes the chip and the dispatch disagree,
+which is the one invariant `ClaudeSkillDispatch`'s header comment promises. Tests live
+next to each copy
+(`composerInlineTokens.test.ts`, `composer-editor-mentions.test.ts`,
+`composerTrigger.test.ts`, `ClaudeSkillDispatch.test.ts`).
+
+**Workaround until then.** Use `$$…$$` for anything with a space in it, or keep inline
+math to a single token. There is no escape: the composer has no code-span exclusion, so
+backticks do not protect a `$name` either.
+
 ## Display equations have no copy button
 
 A rendered block equation can only be copied by selecting it. Fenced code blocks carry a
