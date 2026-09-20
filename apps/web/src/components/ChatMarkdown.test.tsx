@@ -8,7 +8,10 @@ import { getSyntaxHighlighterPromise } from "../lib/syntaxHighlighting";
 import { GitHubIcon } from "./Icons";
 import { Button } from "./ui/button";
 import { setMarkdownTaskChecked } from "./files/filePreviewMode";
-import { serializeRenderedMarkdownFragment } from "../markdown-clipboard";
+import {
+  serializeMathElementToMarkdown,
+  serializeRenderedMarkdownFragment,
+} from "../markdown-clipboard";
 
 vi.mock("@effect/atom-react", () => ({ useAtomValue: () => null }));
 vi.mock("../hooks/useTheme", () => ({ useTheme: () => ({ resolvedTheme: "dark" }) }));
@@ -828,6 +831,17 @@ describe("ChatMarkdown math", () => {
     }
   });
 
+  it("gives a display equation a copy button and leaves inline math bare", () => {
+    const html = renderToStaticMarkup(
+      <ChatMarkdown cwd="/tmp/project" text={"Euler: $e^{i\\pi} + 1 = 0$\n\n$$E = mc^2$$"} />,
+    );
+
+    expect([...html.matchAll(/aria-label="Copy equation"/g)]).toHaveLength(1);
+    expect(html).toContain('data-math-display="true"');
+    // The wrapper belongs to the display block, not to the sentence above it.
+    expect(html.indexOf("data-math-display")).toBeGreaterThan(html.indexOf("Euler"));
+  });
+
   it("keeps math that carries no LaTeX syntax of its own", () => {
     for (const [text, tex] of [
       ["Let $x$ be", "x"],
@@ -904,15 +918,16 @@ describe("copying rendered math", () => {
       return null;
     }
 
-    /** Handles `tag`, `[attr]`, and `[attr="value"]`, optionally `:scope >`-bound. */
+    /** Handles `tag`, `.class`, `[attr]`, and `[attr="value"]`, optionally `:scope >`-bound. */
     querySelector(selector: string): DomElement | null {
       const childOnly = selector.startsWith(":scope > ");
       const target = childOnly ? selector.slice(":scope > ".length) : selector;
-      const parsed = /^([a-z]*)(?:\[([\w-]+)(?:="([^"]*)")?\])?$/i.exec(target);
+      const parsed = /^([a-z]*)(?:\.([\w-]+))?(?:\[([\w-]+)(?:="([^"]*)")?\])?$/i.exec(target);
       if (!parsed) throw new Error(`Unsupported selector: ${selector}`);
-      const [, tag = "", attribute, value] = parsed;
+      const [, tag = "", className, attribute, value] = parsed;
       const matches = (element: DomElement): boolean => {
         if (tag && element.tagName !== tag.toUpperCase()) return false;
+        if (className !== undefined && !element.classList.contains(className)) return false;
         if (attribute === undefined) return true;
         const actual = element.getAttribute(attribute);
         return value === undefined ? actual !== null : actual === value;
@@ -948,7 +963,7 @@ describe("copying rendered math", () => {
     return element;
   }
 
-  async function copyWholeMessage(text: string): Promise<string> {
+  async function withRenderedMessage<A>(text: string, read: (root: DomElement) => A): Promise<A> {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     vi.stubGlobal("Node", { TEXT_NODE, ELEMENT_NODE });
     let renderer: ReactTestRenderer | undefined;
@@ -958,13 +973,17 @@ describe("copying rendered math", () => {
       });
       const rendered = renderer!.toJSON();
       if (rendered === null || Array.isArray(rendered)) throw new Error("Expected one root node");
-      return serializeRenderedMarkdownFragment(
-        toDom(rendered as unknown as RendererNode) as unknown as Node,
-      );
+      return read(toDom(rendered as unknown as RendererNode) as DomElement);
     } finally {
       if (renderer) await act(async () => renderer!.unmount());
       vi.unstubAllGlobals();
     }
+  }
+
+  function copyWholeMessage(text: string): Promise<string> {
+    return withRenderedMessage(text, (root) =>
+      serializeRenderedMarkdownFragment(root as unknown as Node),
+    );
   }
 
   it("gives back the LaTeX source of a message full of math", async () => {
@@ -990,6 +1009,31 @@ describe("copying rendered math", () => {
 
   it("gives back the source KaTeX kept for an equation it could not parse", async () => {
     expect(await copyWholeMessage("Broken: $\\frac{1}$ here")).toBe("Broken: $\\frac{1}$ here");
+  });
+
+  it("copies one display equation with its delimiters, the way its button does", async () => {
+    const source = "Then:\n\n$$\n\\int_0^1 x\\,dx = \\frac{1}{2}\n$$\n\nas claimed.";
+
+    const copied = await withRenderedMessage(source, (root) => {
+      // The button's own lookup, run against the tree the renderer produced.
+      const equation = root.querySelector(".katex-display");
+      if (!equation) throw new Error("Expected a rendered display equation");
+      return serializeMathElementToMarkdown(equation as unknown as Element);
+    });
+
+    expect(copied).toBe("$$\n\\int_0^1 x\\,dx = \\frac{1}{2}\n$$");
+  });
+
+  it("leaves the copy button out of a selection dragged across the equation", async () => {
+    const copied = await withRenderedMessage("$$\nE = mc^2\n$$", (root) => {
+      // The button is a hover control inside the equation's own element, so
+      // the selection a reader drags across the equation contains it.
+      const block = root.querySelector("[data-math-display]");
+      if (!block?.querySelector("button")) throw new Error("Expected a copy button in the block");
+      return serializeRenderedMarkdownFragment(root as unknown as Node);
+    });
+
+    expect(copied).toBe("$$\nE = mc^2\n$$");
   });
 });
 

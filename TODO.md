@@ -61,36 +61,59 @@ chipped". Fixing the chip fixes that with it; nothing else needs to change there
 math to a single token. There is no escape: the composer has no code-span exclusion, so
 backticks do not protect a `$name` either.
 
-## Display equations have no copy button
+## A `$$` block inside a blockquote renders as its own source
 
-A rendered block equation can only be copied by selecting it. Fenced code blocks carry a
-copy button in their header; display math carries nothing, so getting an equation back out
-of a message means dragging a selection across KaTeX's spans and hoping the edges land.
+Quoting a derivation breaks the equation in it. A fenced `$$…$$` block inside a
+blockquote never renders: it comes out as literal text with the quote markers
+still in it.
 
-**Where the pieces already are.** `MarkdownCodeBlock`
-(`apps/web/src/components/ChatMarkdown.tsx:938`) is the pattern to copy from: hover header,
-`copied` state that resets after 1200ms, failures routed through
-`reportMarkdownActionFailure`. The TeX itself is already recoverable —
-`serializeMath` (`apps/web/src/markdown-clipboard.ts:175`) reads it out of the
-`annotation[encoding="application/x-tex"]` node KaTeX emits, falls back to the raw source
-on `.katex-error`, and wraps display math as `$$\n…\n$$`. A button should call that same
-function rather than grow a second extraction path that can disagree with selection-copy.
+    > A quoted derivation:
+    >
+    > $$
+    > dX_t = \mu X_t\,dt + \sigma X_t\,dW_t
+    > $$
 
-**What a fix has to get right.**
+renders as the paragraph `$$ > dX_t = \mu X_t\,dt + \sigma X_t\,dW_t > $$`,
+markers and all. Observed 2026-09-20 in the file browser's Markdown preview.
 
-- Only `.katex-display` gets the button. Inline math inside a sentence must not sprout
-  controls, and `markdown-math.ts` is what decides which dollar spans became display in the
-  first place — a one-line `$$E = mc^2$$` alone in a paragraph is promoted there.
-- Copy the `$$` delimiters, not the bare body, so the result pastes back as an equation.
-  Note that pasting it into the composer currently mangles it; the LaTeX entry above is the
-  other half of this round trip.
-- The button must stay out of selection copies. `markdown-clipboard.ts` skips `BUTTON`
-  (`SKIPPED_TAGS`) and strips buttons from the HTML flavor, so following the code-block
-  precedent keeps this working — but it is worth a test, since a hover control inside the
-  equation's own element is new.
-- `ChatMarkdown` renders both chat messages and the file browser's Markdown preview
-  (`FileMarkdownPreview.tsx`), so the button appears in both. Check it against a preview
-  document, not just a thread.
+**What happens.** `createDollarMathPlugin` decides whether a `$$` block closed
+by testing `CLOSING_FENCE_LINE` (`apps/web/src/markdown-math.ts:64`,
+`/\n[ \t]*\$\$[ \t]*$/`) against the block's _raw document source_, which
+`nodeSource` (line 67) slices by offset. Inside a blockquote that slice still
+carries the `> ` prefixes micromark stripped, so the closing line reads `> $$`
+and does not match. The plugin concludes the fence ran away
+(line 206), `recoverRunaway` (line 125) finds no trailing `$$` and no blank
+line in the node's clean value and returns null, and the fallback at line 227
+replaces the equation with a paragraph of that same prefixed raw source.
+
+**Exactly which shapes break.** Only the multi-line fenced form, and only under
+a blockquote — but nesting does not save it:
+
+| shape                  | in a blockquote |
+| ---------------------- | --------------- |
+| `$$\n…\n$$` fenced     | **broken**      |
+| `> > $$\n…\n$$` nested | **broken**      |
+| `$$…$$` on one line    | renders         |
+| `$…$` inline           | renders         |
+| ` ```math ` fence      | renders         |
+
+A fenced `$$` in a _list_ item is fine, because its continuation indent is
+spaces and `[ \t]*` already allows those. `>` is the only prefix that breaks
+the test.
+
+**Fix direction.** The comparison is between a de-prefixed value and a prefixed
+source, so either end can move. Stripping a leading `[ \t]*>[ \t]?` run from
+each line before the fence test is the small change, but note there are three
+places that reason about raw source this way — the `CLOSING_FENCE_LINE` test at
+line 206, the same test inside `recoverRunaway` (line 135), and the fallback at
+line 227 that reinserts `nodeSource` verbatim. Fixing only the first leaves the other two
+emitting prefixed text on the paths they still reach. `prosaicDollarSource` and
+`loneDisplayMath` read raw source too, and both happen to be safe only because
+they look at single-line spans. Tests live in `markdown-math.test.ts`; the
+blockquote cases are missing there, which is why this survived.
+
+**Workaround until then.** Inside a blockquote, write display math as a
+one-line `$$…$$` or as a ` ```math ` fence. Both render correctly.
 
 ## Nothing reaches the Obsidian reference library
 

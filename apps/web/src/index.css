@@ -1952,6 +1952,37 @@ code {
   overflow-wrap: anywhere;
 }
 
+/* A display equation's copy button. It sits in the wrapper rather than inside
+   .katex-display, which is its own scroll box and would carry the button off
+   the right edge with a wide equation. Hidden until the equation is hovered or
+   the button is focused, so a page of equations is not a page of buttons; an
+   equation is usually narrower than the pane, which leaves the top-right
+   corner free. */
+.chat-markdown .chat-markdown-math-block {
+  position: relative;
+}
+
+.chat-markdown .chat-markdown-math-copy {
+  position: absolute;
+  top: 0;
+  right: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease-out;
+}
+
+.chat-markdown .chat-markdown-math-block:hover .chat-markdown-math-copy,
+.chat-markdown .chat-markdown-math-copy:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-markdown .chat-markdown-math-copy {
+    transition: none;
+  }
+}
+
 /* Paragraphs and code blocks arrive in chunks while a response streams. Fade
    each new block in so the chunk does not pop. @starting-style only applies
    when an element is first inserted, and the rule is gated on data-streaming,
