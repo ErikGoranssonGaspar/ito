@@ -165,3 +165,56 @@ common — 134 of the 479 reference notes carry wiki links, 55 of them aliased a
 headings — and none of those should render as broken links; an
 unresolvable name should stay visibly unresolved rather than silently becoming plain text;
 and `[[` must keep its literal meaning inside code fences and math.
+
+## The sidebar spends a button on pull requests instead of a file explorer
+
+The left sidebar's footer is an icon row — Settings, Pull Requests, Usage — and the file
+tree lives only inside the thread's right panel, behind opening a file first. Wanted the
+other way round: drop the Pull Requests button and give the sidebar a persistent VS
+Code-style explorer occupying part of its height, so the workspace's files are visible
+without opening a panel.
+
+**What is there now.** `SidebarUtilityMenu`
+(`apps/web/src/components/sidebar/SidebarChrome.tsx:122`) renders the three
+`SidebarUtilityItem` buttons; the Pull Requests one (line 194) is shown when any connected
+environment reports the `pullRequests` capability and navigates to `/pull-requests`
+(`apps/web/src/routes/_chat.pull-requests.tsx`) carrying
+`readPullRequestListPreferences()`.
+
+**The explorer already exists.** `FileBrowserPanel`
+(`apps/web/src/components/files/FileBrowserPanel.tsx`) is the tree, with search,
+expand/collapse all, drag-to-mention, a context menu and refresh-on-workspace-mutation. It
+takes `environmentId`, `cwd`, `projectName`, `selectedPath`, `selectedPathRevealId`,
+`onOpenFile` and `workspaceMutationId`, and today is mounted in exactly one place:
+`FilePreviewPanel.tsx:1294`, keyed `${environmentId}:${cwd}`, fed by `ChatView.tsx:9588`
+from `activeThread.environmentId` and `activeWorkspaceRoot`. Moving it is mostly a
+question of what to feed it, not of rewriting it.
+
+**What a fix has to get right.**
+
+- Which root, when there is no thread. The sidebar is global and persists across
+  `/`, `/settings` and `/usage`, but the explorer needs an environment and a cwd. Pick
+  between showing nothing, remembering the last project, or a project switcher in the
+  explorer's header. `Sidebar.tsx:2240` already derives `routeThreadRef`, which is the
+  hook for "what is open right now".
+- Where a click lands. `onOpenFile` in the right panel ends at
+  `useRightPanelStore.openFile` (`rightPanelStore.ts:137`, implementation line 578), which
+  is keyed by a `ScopedThreadRef` — a file clicked with no active thread has no surface to
+  open into. Decide whether the sidebar explorer is inert outside a thread or whether
+  clicking starts one.
+- Room in the sidebar. The width is user-resized and persisted
+  (`threadSidebarWidth.ts`), and the thread list is virtualized inside `SidebarContent`
+  (`Sidebar.tsx:4372`). A split needs its own persisted height and a collapsed state, and
+  must not squeeze the thread list to nothing at the minimum sidebar width.
+  `LegacySidebar.tsx:3625` renders the same chrome, so decide whether the legacy sidebar
+  gets the explorer or just loses the button.
+- Where pull requests go. The per-thread affordances are untouched
+  (`ThreadPullRequestBadgeControl` / `ThreadPullRequestsMiniList`, `Sidebar.tsx:1510`), but
+  the cross-thread `/pull-requests` list would lose its only entry point. It needs another
+  one, or the button stays and something else moves.
+- Two trees, one workspace. If the right panel keeps its own browser, both can hold
+  different expansion and selection state for the same cwd (`fileTreeExpansion.ts`,
+  `fileTreePathReconciliation.ts`). Share it or diverge on purpose.
+- Mobile. The sidebar is an overlay there and closes on navigation
+  (`closeMobileSidebar`), so an explorer inside it has to close the same way after opening
+  a file.
