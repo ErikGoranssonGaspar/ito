@@ -1,4 +1,14 @@
-import { Extension, Node, wrappingInputRule, type JSONContent } from "@tiptap/core";
+import {
+  Extension,
+  InputRule,
+  Node,
+  wrappingInputRule,
+  type JSONContent,
+  type Mark,
+} from "@tiptap/core";
+import { Bold } from "@tiptap/extension-bold";
+import { Italic } from "@tiptap/extension-italic";
+import { Strike } from "@tiptap/extension-strike";
 import { TaskList } from "@tiptap/extension-task-list";
 import { ReactNodeViewRenderer, NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -45,6 +55,7 @@ import {
 import {
   buildDocJson,
   buildTiptapContent,
+  caretInsideMath,
   collapsedToFlat,
   ComposerTaskItemExtension,
   flatToCollapsed,
@@ -547,6 +558,37 @@ const ComposerMarkersExtension = Extension.create({
   },
 });
 
+/**
+ * A mark whose input rules stand down inside an equation.
+ *
+ * `*`, `_` and `~` are LaTeX as much as they are markdown, so typing
+ * `$x = a * b * c$` would otherwise italicize `b` and send the asterisks away
+ * with it — the same loss the parse side fixes for pasted text, arriving one
+ * keystroke at a time instead. Inline code is left alone: a backtick means
+ * nothing to LaTeX, so its rule has nothing to take.
+ */
+function withMathAwareInputRules<Options, Storage>(
+  mark: Mark<Options, Storage>,
+): Mark<Options, Storage> {
+  return mark.extend({
+    addInputRules() {
+      return (this.parent?.() ?? []).map(
+        (rule) =>
+          new InputRule({
+            find: rule.find,
+            undoable: rule.undoable,
+            handler: (props) =>
+              caretInsideMath(props.state.doc, props.range.from) ? null : rule.handler(props),
+          }),
+      );
+    },
+  });
+}
+
+const MathAwareBold = withMathAwareInputRules(Bold);
+const MathAwareItalic = withMathAwareInputRules(Italic);
+const MathAwareStrike = withMathAwareInputRules(Strike);
+
 // Document model (markdown ⇄ ProseMirror) lives in ~/composer-rich-text-doc so
 // unit tests can round-trip it without a browser.
 // ── Editor component ───────────────────────────────────────────────────────
@@ -742,8 +784,14 @@ function ComposerPromptEditorTiptapInner(props: ComposerPromptEditorProps) {
           gapcursor: false,
           trailingNode: false,
           // Plain mode has no marks: typed markers stay literal characters.
-          ...(richText ? {} : { bold: false, italic: false, strike: false, code: false }),
+          // Rich mode swaps in the math-aware marks, so the kit's own are off
+          // either way.
+          bold: false,
+          italic: false,
+          strike: false,
+          ...(richText ? {} : { code: false }),
         }),
+        ...(richText ? [MathAwareBold, MathAwareItalic, MathAwareStrike] : []),
         ComposerMentionExtension,
         ComposerSkillExtension,
         ComposerCitationExtension,

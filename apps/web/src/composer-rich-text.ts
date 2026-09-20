@@ -8,6 +8,11 @@
  *
  * Deliberately small: bold, italic, strikethrough, and inline code only.
  * Unmatched markers stay literal text so nothing the user typed is ever lost.
+ *
+ * Dollar spans are literal the way inline code is. `_` and `*` are ordinary
+ * LaTeX — subscripts, `\underbrace{…}_{0}`, multiplication — so reading them
+ * as styling inside an equation rewrites the equation: the marks serialize
+ * back as `*…*`, and the message is sent with the underscores gone.
  */
 
 export type RichTextMark = "bold" | "italic" | "strike" | "code";
@@ -23,6 +28,54 @@ export const RICH_TEXT_DELIMITERS: Record<RichTextMark, string> = {
   strike: "~~",
   code: "`",
 };
+
+/**
+ * A `$$` fence standing alone on its line, which is the only shape micromark
+ * reads as a display-math block rather than inline math.
+ */
+export const DISPLAY_MATH_FENCE = /^[ \t]*\$\$[ \t]*$/;
+
+/**
+ * What an unclosed dollar can be followed by and still read as prose: nothing
+ * or whitespace, since the renderer rejects a space-padded body too, or one of
+ * the compact amounts the skill tokenizer already keeps out of chips — "$20",
+ * "$100M", "$1e6", "$3.50". Anything else opens an equation.
+ */
+const PENDING_PROSE = /^(?:\s|$|\d[\d,._]*(?:[kKmMbBtT]|[eE]\d+)?(?:\s|$))/;
+
+/** The length of the run of dollars starting at `index`, zero if there is none. */
+function dollarRun(text: string, index: number): number {
+  let end = index;
+  while (text[end] === "$") end += 1;
+  return end - index;
+}
+
+/**
+ * The offset just past the dollar span opening at `index`, or null when those
+ * dollars never close.
+ *
+ * Both halves of the renderer's rule land on literal text, so one span shape
+ * covers them: `markdown-math.ts` sets a span like `$x_1 + y_2$` as an
+ * equation, and reverts a prosaic one like `$5 and $` to the source it came
+ * from. Either way the markers inside a span are characters rather than
+ * styling, here as there — which is also the safe direction, since showing a
+ * marker costs nothing and swallowing one changes what gets sent.
+ */
+function dollarSpanEnd(text: string, index: number): number | null {
+  const fence = dollarRun(text, index);
+  let cursor = index + fence;
+  while (cursor < text.length) {
+    if (text[cursor] !== "$") {
+      cursor += 1;
+      continue;
+    }
+    // micromark closes on a run of the same length; any other run is content.
+    const run = dollarRun(text, cursor);
+    if (run === fence) return cursor + run;
+    cursor += run;
+  }
+  return null;
+}
 
 function pushSpan(spans: RichTextSpan[], text: string, marks: RichTextMark[]): void {
   if (!text) return;
@@ -67,6 +120,14 @@ export function parseInlineMarkdown(text: string): RichTextSpan[] {
         pushSpan(current(), run, []);
         index += run.length;
       }
+      continue;
+    }
+    if (char === "$") {
+      // Dollars that never close keep the meaning they always had: the run is
+      // literal and whatever follows it still takes styling.
+      const end = dollarSpanEnd(text, index) ?? index + dollarRun(text, index);
+      pushSpan(current(), text.slice(index, end), []);
+      index = end;
       continue;
     }
     if (char !== "*" && char !== "_" && char !== "~") {
@@ -128,4 +189,28 @@ export function parseInlineMarkdown(text: string): RichTextSpan[] {
     for (const span of frame.spans) pushSpan(current(), span.text, span.marks);
   }
   return root;
+}
+
+/**
+ * Whether a line, read up to the point something is being typed into it, sits
+ * inside an equation whose closing dollars have not been typed yet.
+ *
+ * The parse rule above cannot answer this: it recognizes a span by its closer,
+ * and while you are typing there is none. So the test is weaker by necessity —
+ * an unclosed dollar run opens math unless what follows it reads as prose.
+ * That asymmetry is deliberate in this direction: declining to style leaves the
+ * markers on screen, where firing the rule would eat the LaTeX outright.
+ */
+export function endsInsideOpenDollarSpan(text: string): boolean {
+  for (let index = text.indexOf("$"); index >= 0; index = text.indexOf("$", index)) {
+    const closed = dollarSpanEnd(text, index);
+    if (closed !== null) {
+      index = closed;
+      continue;
+    }
+    const run = dollarRun(text, index);
+    if (!PENDING_PROSE.test(text.slice(index + run))) return true;
+    index += run;
+  }
+  return false;
 }
