@@ -85,6 +85,60 @@ next to each copy
 math to a single token. There is no escape: the composer has no code-span exclusion, so
 backticks do not protect a `$name` either.
 
+## A `$$` block inside a blockquote renders as its own source
+
+Quoting a derivation breaks the equation in it. A fenced `$$…$$` block inside a
+blockquote never renders: it comes out as literal text with the quote markers
+still in it.
+
+    > A quoted derivation:
+    >
+    > $$
+    > dX_t = \mu X_t\,dt + \sigma X_t\,dW_t
+    > $$
+
+renders as the paragraph `$$ > dX_t = \mu X_t\,dt + \sigma X_t\,dW_t > $$`,
+markers and all. Observed 2026-09-20 in the file browser's Markdown preview.
+
+**What happens.** `createDollarMathPlugin` decides whether a `$$` block closed
+by testing `CLOSING_FENCE_LINE` (`apps/web/src/markdown-math.ts:64`,
+`/\n[ \t]*\$\$[ \t]*$/`) against the block's _raw document source_, which
+`nodeSource` (line 67) slices by offset. Inside a blockquote that slice still
+carries the `> ` prefixes micromark stripped, so the closing line reads `> $$`
+and does not match. The plugin concludes the fence ran away
+(line 206), `recoverRunaway` (line 125) finds no trailing `$$` and no blank
+line in the node's clean value and returns null, and the fallback at line 227
+replaces the equation with a paragraph of that same prefixed raw source.
+
+**Exactly which shapes break.** Only the multi-line fenced form, and only under
+a blockquote — but nesting does not save it:
+
+| shape                  | in a blockquote |
+| ---------------------- | --------------- |
+| `$$\n…\n$$` fenced     | **broken**      |
+| `> > $$\n…\n$$` nested | **broken**      |
+| `$$…$$` on one line    | renders         |
+| `$…$` inline           | renders         |
+| ` ```math ` fence      | renders         |
+
+A fenced `$$` in a _list_ item is fine, because its continuation indent is
+spaces and `[ \t]*` already allows those. `>` is the only prefix that breaks
+the test.
+
+**Fix direction.** The comparison is between a de-prefixed value and a prefixed
+source, so either end can move. Stripping a leading `[ \t]*>[ \t]?` run from
+each line before the fence test is the small change, but note there are three
+places that reason about raw source this way — the `CLOSING_FENCE_LINE` test at
+line 206, the same test inside `recoverRunaway` (line 135), and the fallback at
+line 227 that reinserts `nodeSource` verbatim. Fixing only the first leaves the other two
+emitting prefixed text on the paths they still reach. `prosaicDollarSource` and
+`loneDisplayMath` read raw source too, and both happen to be safe only because
+they look at single-line spans. Tests live in `markdown-math.test.ts`; the
+blockquote cases are missing there, which is why this survived.
+
+**Workaround until then.** Inside a blockquote, write display math as a
+one-line `$$…$$` or as a ` ```math ` fence. Both render correctly.
+
 ## Nothing reaches the Obsidian reference library
 
 The vault at `~/Obsidian` holds ~479 notes in `References/`, one per source, front-matter
