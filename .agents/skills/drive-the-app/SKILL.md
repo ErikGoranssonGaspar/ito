@@ -38,7 +38,17 @@ grep -vE "ECONNREFUSED|proxy error|internalConnectMultiple|afterConnectMultiple|
 
 Edits under `apps/web` hot-reload into the running window in roughly twelve
 seconds, so a before/after comparison is `git checkout -- <file>`, sleep, re-run,
-restore from a copy. No relaunch needed.
+restore from a copy.
+
+**Not for the composer, and not for anything else built once.**
+`ComposerPromptEditorTiptap` calls `useEditor` with `[]` deps, so Fast Refresh
+re-runs the module and leaves the existing editor — and the extension instances
+it closed over — in place. The revert lands in the file, vite logs the `hmr
+update`, and the window keeps running the code you just removed, so both arms of
+the comparison measure the same build and agree. Nothing warns you. Relaunch
+between arms whenever the thing under test is an extension, a plugin, or
+anything else captured at construction; the twelve-second loop is for render
+output only.
 
 **Stop it through the task you started** (TaskStop, or the pid you recorded).
 Never match on process name. Killing `pnpm dev` mid-`vp build` leaves a partial
