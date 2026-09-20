@@ -6,6 +6,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   buildDocJson,
+  caretInsideMath,
   collapsedToFlat,
   ComposerTaskItemExtension,
   flatToCollapsed,
@@ -60,6 +61,8 @@ const schema = getSchemaByResolvedExtensions(
     ComposerTaskItemExtension,
   ]),
 );
+
+const stubSkill = { label: "", description: null };
 
 function roundTrip(value: string) {
   const json = buildDocJson(value, (name) => ({ label: name, description: null }));
@@ -330,6 +333,77 @@ describe("composer rich text document model", () => {
     "**bold** then @README.md then *italic*",
   ])("round-trips %s byte-identically in plain mode", (value) => {
     expect(roundTripPlain(value).value).toBe(value);
+  });
+
+  it.each([
+    "$\\underbrace{a}_{0} + \\underbrace{b}_{1}$",
+    "$a*b*c$",
+    "$$\\int_{0}^{1} f(x)\\,dx = \\lim_{n\\to\\infty} S_n$$",
+    "let $$x_1$$ and $$y_2$$ be",
+    "$$\n\\underbrace{a}_{0} + \\underbrace{b}_{1}\n$$",
+    "$$\n- [ ] not a task, it is a bound\n$$",
+    "costs $5 and $10 for *two*",
+  ])("round-trips the LaTeX in %j", (value) => {
+    expect(roundTrip(value).value).toBe(value);
+  });
+
+  it("styles markdown around a display equation but not inside it", () => {
+    const value = "**before**\n$$\na_1 *b* c_2\n$$\n**after**";
+    const map = roundTrip(value);
+    expect(map.value).toBe(value);
+    const doc = ProseMirrorNode.fromJSON(
+      schema,
+      buildDocJson(value, () => stubSkill),
+    );
+    const marked = new Set<string>();
+    doc.descendants((node) => {
+      for (const mark of node.marks) marked.add(`${mark.type.name}:${node.text ?? ""}`);
+    });
+    expect(marked).toEqual(new Set(["bold:before", "bold:after"]));
+  });
+
+  it("closes a runaway display fence at the blank line the prose starts after", () => {
+    const value = "$$\na_1 + b_2\n\nand *then* some **prose**";
+    const map = roundTrip(value);
+    expect(map.value).toBe(value);
+    const doc = ProseMirrorNode.fromJSON(
+      schema,
+      buildDocJson(value, () => stubSkill),
+    );
+    const marked: string[] = [];
+    doc.descendants((node) => {
+      if (node.marks.length > 0) marked.push(node.text ?? "");
+    });
+    expect(marked).toEqual(["then", "prose"]);
+  });
+
+  it("sees a display fence held open across lines", () => {
+    const caretAtEndOfLine = (value: string, line: number) => {
+      const doc = ProseMirrorNode.fromJSON(
+        schema,
+        buildDocJson(value, () => stubSkill),
+      );
+      let pos = 0;
+      for (let index = 0; index < line; index += 1) pos += doc.child(index).nodeSize;
+      return caretInsideMath(doc, pos + 1 + doc.child(line).content.size);
+    };
+    expect(caretAtEndOfLine("$$\na_1 + b", 1)).toBe(true);
+    expect(caretAtEndOfLine("$$\na_1\n$$\nafter *this", 3)).toBe(false);
+    // The cut a runaway fence takes, so prose after a stray `$$` still styles.
+    expect(caretAtEndOfLine("$$\na_1\n\nafter *this", 3)).toBe(false);
+    expect(caretAtEndOfLine("plain\n$\\alpha * \\beta", 1)).toBe(true);
+    expect(caretAtEndOfLine("plain\nno math here", 1)).toBe(false);
+  });
+
+  it("cannot see an equation the skill tokenizer has already chipped", () => {
+    // `$x` is a chip, and a chip carries no text, so the opening dollar is
+    // invisible here. Documented as the chip break rather than fixed here.
+    const value = "$x = a * b";
+    const doc = ProseMirrorNode.fromJSON(
+      schema,
+      buildDocJson(value, () => stubSkill),
+    );
+    expect(caretInsideMath(doc, doc.child(0).content.size + 1)).toBe(false);
   });
 
   it("maps every document offset through collapsed coordinates and back", () => {

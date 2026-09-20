@@ -2,7 +2,13 @@ import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { TaskItem } from "@tiptap/extension-task-item";
 
 import { splitPromptIntoComposerSegments } from "~/composer-editor-mentions";
-import { parseInlineMarkdown, RICH_TEXT_DELIMITERS, type RichTextMark } from "~/composer-rich-text";
+import {
+  DISPLAY_MATH_FENCE,
+  endsInsideOpenDollarSpan,
+  parseInlineMarkdown,
+  RICH_TEXT_DELIMITERS,
+  type RichTextMark,
+} from "~/composer-rich-text";
 import { collectInlineContextIds } from "~/lib/composerContextReferences";
 
 /**
@@ -163,6 +169,32 @@ function textJsonForSpan(text: string, marks: RichTextMark[]): Record<string, un
   return json;
 }
 
+/**
+ * Whether the caret at `from` sits inside an equation, as far as anything can
+ * be told before its closing dollars are typed.
+ *
+ * Two shapes, matching the two `buildTiptapContent` recognizes on the way in:
+ * a `$$` fence opened on an earlier line and not yet closed, and an unclosed
+ * dollar run on this one. A fence closes at its partner or at the blank line
+ * an equation never contains, the same cut `markdown-math.ts` makes on a
+ * runaway block.
+ *
+ * A chip contributes no text, so an equation the skill tokenizer has already
+ * claimed — `$x` in `$x = 1$` — hides its own opening dollar from this and
+ * goes unrecognized. That is the chip break, not this one.
+ */
+export function caretInsideMath(doc: ProseMirrorNode, from: number): boolean {
+  const $from = doc.resolve(from);
+  const blocks = $from.node(0);
+  let fenced = false;
+  for (let index = 0; index < $from.index(0); index += 1) {
+    const line = blocks.child(index).textContent;
+    if (DISPLAY_MATH_FENCE.test(line)) fenced = !fenced;
+    else if (fenced && line.trim() === "") fenced = false;
+  }
+  return fenced || endsInsideOpenDollarSpan($from.parent.textBetween(0, $from.parentOffset));
+}
+
 export function buildTiptapContent(
   value: string,
   skillLabelFor: (name: string) => SkillMeta,
@@ -184,10 +216,19 @@ export function buildTiptapContent(
     })
     .join("");
   let atomIndex = 0;
+  // A display equation is split across lines before `parseInlineMarkdown` ever
+  // sees it, so its `$$` span cannot protect the body the way an inline one
+  // does. Hold the fence open across lines instead, and close it the way
+  // `markdown-math.ts` cuts a runaway block: at the closing fence, or at the
+  // blank line an equation never contains.
+  let insideDisplayMath = false;
   const lines: DocLine[] = text.split("\n").map((line) => {
-    const parsed = styling ? parseTaskPrefix(line) : null;
+    const fence = styling && DISPLAY_MATH_FENCE.test(line);
+    const style = styling && !insideDisplayMath && !fence;
+    insideDisplayMath = insideDisplayMath ? !fence && line.trim() !== "" : fence;
+    const parsed = style ? parseTaskPrefix(line) : null;
     const content = parsed ? line.slice(parsed.markerLength) : line;
-    const spans = styling ? parseInlineMarkdown(content) : [{ text: content, marks: [] }];
+    const spans = style ? parseInlineMarkdown(content) : [{ text: content, marks: [] }];
     const inline: InlineJson[] = [];
     for (const span of spans) {
       span.text.split(sentinel).forEach((piece, index) => {
