@@ -85,37 +85,6 @@ next to each copy
 math to a single token. There is no escape: the composer has no code-span exclusion, so
 backticks do not protect a `$name` either.
 
-## Display equations have no copy button
-
-A rendered block equation can only be copied by selecting it. Fenced code blocks carry a
-copy button in their header; display math carries nothing, so getting an equation back out
-of a message means dragging a selection across KaTeX's spans and hoping the edges land.
-
-**Where the pieces already are.** `MarkdownCodeBlock`
-(`apps/web/src/components/ChatMarkdown.tsx:938`) is the pattern to copy from: hover header,
-`copied` state that resets after 1200ms, failures routed through
-`reportMarkdownActionFailure`. The TeX itself is already recoverable —
-`serializeMath` (`apps/web/src/markdown-clipboard.ts:175`) reads it out of the
-`annotation[encoding="application/x-tex"]` node KaTeX emits, falls back to the raw source
-on `.katex-error`, and wraps display math as `$$\n…\n$$`. A button should call that same
-function rather than grow a second extraction path that can disagree with selection-copy.
-
-**What a fix has to get right.**
-
-- Only `.katex-display` gets the button. Inline math inside a sentence must not sprout
-  controls, and `markdown-math.ts` is what decides which dollar spans became display in the
-  first place — a one-line `$$E = mc^2$$` alone in a paragraph is promoted there.
-- Copy the `$$` delimiters, not the bare body, so the result pastes back as an equation.
-  Note that pasting it into the composer currently mangles it; the LaTeX entry above is the
-  other half of this round trip.
-- The button must stay out of selection copies. `markdown-clipboard.ts` skips `BUTTON`
-  (`SKIPPED_TAGS`) and strips buttons from the HTML flavor, so following the code-block
-  precedent keeps this working — but it is worth a test, since a hover control inside the
-  equation's own element is new.
-- `ChatMarkdown` renders both chat messages and the file browser's Markdown preview
-  (`FileMarkdownPreview.tsx`), so the button appears in both. Check it against a preview
-  document, not just a thread.
-
 ## Nothing reaches the Obsidian reference library
 
 The vault at `~/Obsidian` holds ~479 notes in `References/`, one per source, front-matter

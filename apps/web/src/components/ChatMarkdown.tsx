@@ -144,6 +144,7 @@ import { useTheme } from "../hooks/useTheme";
 import { getClientSettings, useClientSettings } from "../hooks/useSettings";
 import {
   chatMarkdownClipboardPayload,
+  serializeMathElementToMarkdown,
   serializeTableElementToCsv,
   serializeTableElementToMarkdown,
 } from "../markdown-clipboard";
@@ -387,14 +388,14 @@ function orderedListGutterStyle(
   return { "--list-gutter": `${markerWidth + 1}ch` };
 }
 
-type MarkdownImageHastNode = {
+type MarkdownHastNode = {
   type?: string;
   tagName?: string;
   properties?: Record<string, unknown>;
-  children?: MarkdownImageHastNode[];
+  children?: MarkdownHastNode[];
 };
 
-function meaningfulHastChildren(node: MarkdownImageHastNode): MarkdownImageHastNode[] {
+function meaningfulHastChildren(node: MarkdownHastNode): MarkdownHastNode[] {
   return (node.children ?? []).filter(
     (child) => !(child.type === "text" && (child as { value?: string }).value?.trim() === ""),
   );
@@ -419,7 +420,7 @@ const STANDALONE_IMAGE_BLOCKS = new Set([
   "blockquote",
 ]);
 
-function soleImageDescendant(node: MarkdownImageHastNode): MarkdownImageHastNode | undefined {
+function soleImageDescendant(node: MarkdownHastNode): MarkdownHastNode | undefined {
   const children = meaningfulHastChildren(node);
   if (children.length !== 1) return undefined;
   const only = children[0];
@@ -432,7 +433,7 @@ function soleImageDescendant(node: MarkdownImageHastNode): MarkdownImageHastNode
     : undefined;
 }
 
-function markStandaloneImages(node: MarkdownImageHastNode) {
+function markStandaloneImages(node: MarkdownHastNode) {
   // A raw `<img>` on its own line reaches the root without a paragraph.
   if (node.type === "root" || (node.tagName && STANDALONE_IMAGE_BLOCKS.has(node.tagName))) {
     const image = soleImageDescendant(node);
@@ -445,8 +446,8 @@ function markStandaloneImages(node: MarkdownImageHastNode) {
 
 /** Carries authored image source metadata through the sanitizer to the image renderer. */
 function rehypePreserveImageSourceMeta() {
-  return (tree: MarkdownImageHastNode) => {
-    const visit = (node: MarkdownImageHastNode) => {
+  return (tree: MarkdownHastNode) => {
+    const visit = (node: MarkdownHastNode) => {
       const src = node.properties?.src;
       const title = node.properties?.title;
       if (node.type === "element" && node.tagName === "img") {
@@ -461,6 +462,44 @@ function rehypePreserveImageSourceMeta() {
 
     visit(tree);
     markStandaloneImages(tree);
+  };
+}
+
+/**
+ * Gives each display equation a wrapper the renderer can hang a copy button
+ * on. The button cannot live inside `.katex-display` itself: that span is its
+ * own horizontal scroll box, so a wide equation would carry the button off the
+ * right edge with it.
+ *
+ * Runs after KaTeX, which is the only thing that knows whether a `$$` block
+ * parsed — an equation it could not parse renders as a bare `.katex-error`
+ * span with its source already visible as text, and gets no wrapper.
+ */
+function rehypeWrapDisplayMath() {
+  return (tree: MarkdownHastNode) => {
+    const visit = (node: MarkdownHastNode) => {
+      const children = node.children;
+      if (!children) return;
+      children.forEach((child, index) => {
+        const className = child.properties?.className;
+        const classes = Array.isArray(className) ? className : [];
+        if (classes.includes("katex-display")) {
+          children[index] = {
+            type: "element",
+            tagName: "div",
+            properties: { className: ["chat-markdown-math-block"], dataMathDisplay: true },
+            children: [child],
+          };
+          return;
+        }
+        // No equation contains another, and KaTeX's glyph spans are most of a
+        // rendered message by node count, so its output is not walked into.
+        if (classes.includes("katex") || classes.includes("katex-error")) return;
+        visit(child);
+      });
+    };
+
+    visit(tree);
   };
 }
 
@@ -525,13 +564,15 @@ const CHAT_MARKDOWN_REHYPE_PLUGINS = [
   rehypePreserveImageSourceMeta,
   [rehypeSanitize, CHAT_MARKDOWN_SANITIZE_SCHEMA],
   rehypeKatex,
+  rehypeWrapDisplayMath,
 ] satisfies NonNullable<ReactMarkdownOptions["rehypePlugins"]>;
 
 /** Messages that keep raw HTML as source text have nothing to sanitize, and
     still need their math rendered. */
-const CHAT_MARKDOWN_MATH_REHYPE_PLUGINS = [rehypeKatex] satisfies NonNullable<
-  ReactMarkdownOptions["rehypePlugins"]
->;
+const CHAT_MARKDOWN_MATH_REHYPE_PLUGINS = [
+  rehypeKatex,
+  rehypeWrapDisplayMath,
+] satisfies NonNullable<ReactMarkdownOptions["rehypePlugins"]>;
 
 /** GitHub's own five alert kinds, in its colors: the glyph names the urgency, the title says it. */
 const GITHUB_ALERT_PRESENTATIONS: Record<
@@ -1045,6 +1086,80 @@ function MarkdownCodeBlock({
         </span>
       </div>
       {children}
+    </div>
+  );
+}
+
+/**
+ * A display equation, plus the copy button `rehypeWrapDisplayMath` made room
+ * for. Getting an equation back out of a message otherwise means dragging a
+ * selection across KaTeX's spans and hoping the edges land.
+ *
+ * The button reads the TeX through `serializeMathElementToMarkdown`, the same
+ * function selection-copy goes through, so the two paths cannot drift apart.
+ * It copies the `$$` delimiters with the body, so what lands on the clipboard
+ * pastes back as an equation.
+ */
+function MarkdownMathBlock({ children, ...props }: ComponentProps<"div">) {
+  const [copied, setCopied] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copyLabel = copied ? "Copied" : "Copy equation";
+
+  const handleCopy = useCallback(() => {
+    const equation = containerRef.current?.querySelector(".katex-display");
+    if (!equation || typeof navigator === "undefined" || navigator.clipboard == null) {
+      return;
+    }
+    const markdown = serializeMathElementToMarkdown(equation);
+    if (!markdown) return;
+    void navigator.clipboard
+      .writeText(markdown)
+      .then(() => {
+        if (copiedTimerRef.current != null) {
+          clearTimeout(copiedTimerRef.current);
+        }
+        setCopied(true);
+        copiedTimerRef.current = setTimeout(() => {
+          setCopied(false);
+          copiedTimerRef.current = null;
+        }, 1200);
+      })
+      .catch((cause) => {
+        reportMarkdownActionFailure({ operation: "copy-math-block" }, cause);
+      });
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (copiedTimerRef.current != null) {
+        clearTimeout(copiedTimerRef.current);
+        copiedTimerRef.current = null;
+      }
+    },
+    [],
+  );
+
+  return (
+    <div {...props} ref={containerRef}>
+      {children}
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              className="chat-markdown-chrome-action chat-markdown-math-copy select-none"
+              onClick={handleCopy}
+              aria-label={copyLabel}
+            />
+          }
+        >
+          {copied ? <CheckIcon className="size-3" /> : <CopyIcon className="size-3" />}
+        </TooltipTrigger>
+        <TooltipPopup side="top">{copyLabel}</TooltipPopup>
+      </Tooltip>
     </div>
   );
 }
@@ -2780,6 +2895,9 @@ const CHAT_MARKDOWN_COMPONENTS = {
   h6: markdownHeadingRenderer(6),
   div: function MarkdownDiv({ node, children, ...props }) {
     const { onUseArtifactTemplate } = use(ChatMarkdownRendererContext);
+    if (node?.properties?.dataMathDisplay === true) {
+      return <MarkdownMathBlock {...props}>{children}</MarkdownMathBlock>;
+    }
     const artifactTemplate = artifactTemplateFromHastProperties(node?.properties);
     if (artifactTemplate) {
       return (

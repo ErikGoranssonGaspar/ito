@@ -370,6 +370,15 @@ export function serializeTableElementToMarkdown(table: Element): string {
   return serializeTable(table).trim();
 }
 
+/**
+ * One rendered equation as markdown, for the copy button a display equation
+ * carries. Shares `serializeMath` with selection copy so a button press and a
+ * dragged selection can never disagree about the same equation's TeX.
+ */
+export function serializeMathElementToMarkdown(math: Element): string {
+  return serializeMath(math).trim();
+}
+
 function csvCell(value: string): string {
   const normalized = value.replace(/\s+/g, " ").trim();
   return /[",\n]/.test(normalized) ? `"${normalized.replaceAll('"', '""')}"` : normalized;
